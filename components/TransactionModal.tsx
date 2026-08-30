@@ -23,10 +23,19 @@ export default function TransactionModal({
 }) {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<TxType>(initial?.type ?? 'expense');
+  const [category, setCategory] = useState(
+    initial?.category ?? categoriesByType(initial?.type ?? 'expense')[0].id
+  );
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   const categories = categoriesByType(type);
+  const isOtherCategory = category === 'otro_ingreso' || category === 'otro_gasto';
+
+  function selectType(nextType: TxType) {
+    setType(nextType);
+    setCategory(categoriesByType(nextType)[0].id);
+  }
 
   function close() {
     setOpen(false);
@@ -67,7 +76,7 @@ export default function TransactionModal({
             <div className="flex rounded-xl bg-bg p-1">
               <button
                 type="button"
-                onClick={() => setType('expense')}
+                onClick={() => selectType('expense')}
                 className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${
                   type === 'expense' ? 'bg-expense text-white shadow-soft' : 'text-muted'
                 }`}
@@ -76,7 +85,7 @@ export default function TransactionModal({
               </button>
               <button
                 type="button"
-                onClick={() => setType('income')}
+                onClick={() => selectType('income')}
                 className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${
                   type === 'income' ? 'bg-income text-white shadow-soft' : 'text-muted'
                 }`}
@@ -103,22 +112,11 @@ export default function TransactionModal({
               </div>
 
               <div>
-                <label className="text-xs font-medium text-muted">Detalle</label>
-                <input
-                  name="detail"
-                  type="text"
-                  required
-                  defaultValue={initial?.detail}
-                  placeholder="¿En qué fue?"
-                  className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
-                />
-              </div>
-
-              <div>
                 <label className="text-xs font-medium text-muted">Categoría</label>
                 <select
                   name="category"
-                  defaultValue={initial?.category}
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
                   className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                 >
                   {categories.map((c) => (
@@ -127,6 +125,24 @@ export default function TransactionModal({
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-muted">
+                  {isOtherCategory ? 'Detalle (especifica de qué se trata)' : 'Detalle'}
+                </label>
+                <input
+                  name="detail"
+                  type="text"
+                  required
+                  defaultValue={initial?.detail}
+                  placeholder={
+                    isOtherCategory
+                      ? 'Ej: bono, préstamo, venta de algo, reembolso...'
+                      : '¿En qué fue?'
+                  }
+                  className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                />
               </div>
 
               <div>
