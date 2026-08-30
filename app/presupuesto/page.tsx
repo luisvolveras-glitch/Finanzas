@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import {
   getAvailableMonths,
   getBudgetItemPaidTotal,
@@ -6,7 +7,7 @@ import {
   listBudgetItems,
   listDebts,
 } from '@/lib/db';
-import { currentMonth, formatMoney } from '@/lib/format';
+import { addMonths, currentMonth, formatMoney, monthLabel } from '@/lib/format';
 import { getCurrentUser } from '@/lib/session';
 import AddBudgetButton from '@/components/AddBudgetButton';
 import BudgetTable, { type BudgetRow } from '@/components/BudgetTable';
@@ -27,6 +28,7 @@ export default async function PresupuestoPage({
   const workspaceId = user!.workspace_id;
   const month = params.month || currentMonth();
   const months = getAvailableMonths(workspaceId);
+  const nextMonth = addMonths(month, 1);
 
   const items = listBudgetItems(workspaceId);
   const debts = listDebts(workspaceId);
@@ -102,7 +104,15 @@ export default async function PresupuestoPage({
         </section>
 
         <section className="space-y-3">
-          <h2 className="px-1 text-sm font-medium text-muted">Gastos fijos y deudas</h2>
+          <div className="flex items-center justify-between px-1 gap-2">
+            <h2 className="text-sm font-medium text-muted">Gastos fijos y deudas</h2>
+            <Link
+              href={`/presupuesto?month=${nextMonth}`}
+              className="shrink-0 rounded-full bg-pillDark px-3 py-1.5 text-xs font-medium text-white hover:brightness-105 transition"
+            >
+              Duplicar para {monthLabel(nextMonth)} →
+            </Link>
+          </div>
           <BudgetTable rows={rows} />
         </section>
       </div>

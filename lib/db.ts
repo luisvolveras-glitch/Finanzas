@@ -155,17 +155,13 @@ function runBootstrapTransaction(conn: Database.Database, adminEmail: string, ad
   bootstrap();
 }
 
+// El build de Next puede levantar varios procesos en paralelo que importan
+// este módulo a la vez. Sin BEGIN IMMEDIATE, dos procesos pueden hacer el
+// SELECT COUNT(*) antes de que cualquiera inserte (ambos ven 0) y sembrar el
+// mismo listado dos veces. .immediate() toma el lock de escritura desde el
+// BEGIN, así que el segundo proceso espera al primero y su propio COUNT ya
+// ve las filas insertadas.
 function seedBudgetItems(conn: Database.Database) {
-  const { count } = conn.prepare('SELECT COUNT(*) AS count FROM budget_items').get() as {
-    count: number;
-  };
-  if (count > 0) return;
-
-  const admin = conn.prepare('SELECT workspace_id FROM users WHERE is_admin = 1 LIMIT 1').get() as
-    | { workspace_id: number }
-    | undefined;
-  if (!admin) return;
-
   const seedRows: [string, string, string, number][] = [
     ['Inmobiliaria', 'Arriendo casa', '1 de cada mes', 50000000],
     ['Movistar', 'Internet, parabólica y teléfono fijo casa', '9 de cada mes', 17649000],
@@ -180,38 +176,48 @@ function seedBudgetItems(conn: Database.Database) {
     ['Colsubsidio', 'Crédito de consumo', '15 de cada mes', 20000000],
   ];
 
-  const insert = conn.prepare(
-    `INSERT INTO budget_items (name, detail, frequency, amount_cents, workspace_id) VALUES (?, ?, ?, ?, ?)`
-  );
-  const insertMany = conn.transaction((rows: typeof seedRows) => {
-    for (const row of rows) insert.run(...row, admin.workspace_id);
+  const seed = conn.transaction(() => {
+    const { count } = conn.prepare('SELECT COUNT(*) AS count FROM budget_items').get() as {
+      count: number;
+    };
+    if (count > 0) return;
+
+    const admin = conn.prepare('SELECT workspace_id FROM users WHERE is_admin = 1 LIMIT 1').get() as
+      | { workspace_id: number }
+      | undefined;
+    if (!admin) return;
+
+    const insert = conn.prepare(
+      `INSERT INTO budget_items (name, detail, frequency, amount_cents, workspace_id) VALUES (?, ?, ?, ?, ?)`
+    );
+    for (const row of seedRows) insert.run(...row, admin.workspace_id);
   });
-  insertMany(seedRows);
+  seed.immediate();
 }
 
 function seedDebts(conn: Database.Database) {
-  const { count } = conn.prepare('SELECT COUNT(*) AS count FROM debts').get() as {
-    count: number;
-  };
-  if (count > 0) return;
-
-  const admin = conn.prepare('SELECT workspace_id FROM users WHERE is_admin = 1 LIMIT 1').get() as
-    | { workspace_id: number }
-    | undefined;
-  if (!admin) return;
-
   const seedRows: [string, string, number, number | null, number | null][] = [
     ['Sra Marina', 'Préstamo gastos variados', 120000000, null, 4],
     ['Alison / Pareja', 'Moto precio total', 115700000, null, null],
   ];
 
-  const insert = conn.prepare(
-    `INSERT INTO debts (entity, detail, principal_cents, interest_rate, term_months, workspace_id) VALUES (?, ?, ?, ?, ?, ?)`
-  );
-  const insertMany = conn.transaction((rows: typeof seedRows) => {
-    for (const row of rows) insert.run(...row, admin.workspace_id);
+  const seed = conn.transaction(() => {
+    const { count } = conn.prepare('SELECT COUNT(*) AS count FROM debts').get() as {
+      count: number;
+    };
+    if (count > 0) return;
+
+    const admin = conn.prepare('SELECT workspace_id FROM users WHERE is_admin = 1 LIMIT 1').get() as
+      | { workspace_id: number }
+      | undefined;
+    if (!admin) return;
+
+    const insert = conn.prepare(
+      `INSERT INTO debts (entity, detail, principal_cents, interest_rate, term_months, workspace_id) VALUES (?, ?, ?, ?, ?, ?)`
+    );
+    for (const row of seedRows) insert.run(...row, admin.workspace_id);
   });
-  insertMany(seedRows);
+  seed.immediate();
 }
 
 const db = global.__finanzasDb ?? createConnection();
