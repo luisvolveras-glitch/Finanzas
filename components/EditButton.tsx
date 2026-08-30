@@ -1,11 +1,18 @@
 'use client';
 
-import TransactionModal, { type EditableTransaction } from './TransactionModal';
+import TransactionModal, { type DebtOption, type EditableTransaction } from './TransactionModal';
 
-export default function EditButton({ transaction }: { transaction: EditableTransaction }) {
+export default function EditButton({
+  transaction,
+  debts = [],
+}: {
+  transaction: EditableTransaction;
+  debts?: DebtOption[];
+}) {
   return (
     <TransactionModal
       initial={transaction}
+      debts={debts}
       trigger={(open) => (
         <button
           onClick={open}

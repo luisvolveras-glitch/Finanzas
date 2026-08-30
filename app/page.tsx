@@ -3,6 +3,7 @@ import {
   getCategoryTotals,
   getMonthlySummary,
   getTotals,
+  listDebts,
   listTransactions,
 } from '@/lib/db';
 import { currentMonth, formatMoney } from '@/lib/format';
@@ -30,6 +31,10 @@ export default async function Home({
   const transactions = listTransactions({ month, limit: 100 });
   const categoryTotals = getCategoryTotals(month);
   const monthlySummary = getMonthlySummary(12);
+  const debtOptions = listDebts().map((d) => ({
+    id: d.id,
+    label: d.detail ? `${d.entity} - ${d.detail}` : d.entity,
+  }));
 
   return (
     <main className="min-h-screen pb-32">
@@ -66,7 +71,7 @@ export default async function Home({
 
         <section className="space-y-3">
           <h2 className="px-1 text-sm font-medium text-muted">Movimientos</h2>
-          <TransactionsList transactions={transactions} />
+          <TransactionsList transactions={transactions} debts={debtOptions} />
         </section>
 
         <section className="space-y-3">
@@ -76,7 +81,7 @@ export default async function Home({
         </section>
       </div>
 
-      <AddButton />
+      <AddButton debts={debtOptions} />
       <BottomNav />
     </main>
   );

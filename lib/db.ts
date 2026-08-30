@@ -47,9 +47,48 @@ function createConnection() {
       amount_cents INTEGER NOT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS debts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity TEXT NOT NULL DEFAULT '',
+      detail TEXT NOT NULL DEFAULT '',
+      principal_cents INTEGER NOT NULL,
+      interest_rate REAL,
+      term_months INTEGER,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
+  migrateTransactionsDebtId(conn);
   seedBudgetItems(conn);
+  seedDebts(conn);
   return conn;
+}
+
+function migrateTransactionsDebtId(conn: Database.Database) {
+  const cols = conn.prepare('PRAGMA table_info(transactions)').all() as { name: string }[];
+  if (!cols.some((c) => c.name === 'debt_id')) {
+    conn.exec('ALTER TABLE transactions ADD COLUMN debt_id INTEGER');
+  }
+}
+
+function seedDebts(conn: Database.Database) {
+  const { count } = conn.prepare('SELECT COUNT(*) AS count FROM debts').get() as {
+    count: number;
+  };
+  if (count > 0) return;
+
+  const seedRows: [string, string, number, number | null, number | null][] = [
+    ['Sra Marina', 'Préstamo gastos variados', 120000000, null, 4],
+    ['Alison / Pareja', 'Moto precio total', 115700000, null, null],
+  ];
+
+  const insert = conn.prepare(
+    `INSERT INTO debts (entity, detail, principal_cents, interest_rate, term_months) VALUES (?, ?, ?, ?, ?)`
+  );
+  const insertMany = conn.transaction((rows: typeof seedRows) => {
+    for (const row of rows) insert.run(...row);
+  });
+  insertMany(seedRows);
 }
 
 function seedBudgetItems(conn: Database.Database) {
@@ -94,6 +133,7 @@ export interface Transaction {
   category: string;
   date: string;
   created_at: string;
+  debt_id: number | null;
 }
 
 export interface NewTransaction {
@@ -102,12 +142,13 @@ export interface NewTransaction {
   detail: string;
   category: string;
   date: string;
+  debtId: number | null;
 }
 
 export function addTransaction(tx: NewTransaction): Transaction {
   const stmt = db.prepare(
-    `INSERT INTO transactions (type, amount_cents, detail, category, date)
-     VALUES (@type, @amountCents, @detail, @category, @date)`
+    `INSERT INTO transactions (type, amount_cents, detail, category, date, debt_id)
+     VALUES (@type, @amountCents, @detail, @category, @date, @debtId)`
   );
   const info = stmt.run(tx);
   return db
@@ -118,7 +159,8 @@ export function addTransaction(tx: NewTransaction): Transaction {
 export function updateTransaction(id: number, tx: NewTransaction): Transaction | undefined {
   db.prepare(
     `UPDATE transactions
-     SET type = @type, amount_cents = @amountCents, detail = @detail, category = @category, date = @date
+     SET type = @type, amount_cents = @amountCents, detail = @detail, category = @category,
+         date = @date, debt_id = @debtId
      WHERE id = @id`
   ).run({ ...tx, id });
   return db.prepare('SELECT * FROM transactions WHERE id = ?').get(id) as Transaction | undefined;
@@ -361,6 +403,74 @@ export function getBudgetTotal(): number {
     .prepare('SELECT COALESCE(SUM(amount_cents), 0) AS total FROM budget_items')
     .get() as { total: number };
   return row.total;
+}
+
+export interface Debt {
+  id: number;
+  entity: string;
+  detail: string;
+  principal_cents: number;
+  interest_rate: number | null;
+  term_months: number | null;
+  created_at: string;
+}
+
+export interface NewDebt {
+  entity: string;
+  detail: string;
+  principalCents: number;
+  interestRate: number | null;
+  termMonths: number | null;
+}
+
+export function addDebt(debt: NewDebt): Debt {
+  const stmt = db.prepare(
+    `INSERT INTO debts (entity, detail, principal_cents, interest_rate, term_months)
+     VALUES (@entity, @detail, @principalCents, @interestRate, @termMonths)`
+  );
+  const info = stmt.run(debt);
+  return db.prepare('SELECT * FROM debts WHERE id = ?').get(info.lastInsertRowid) as Debt;
+}
+
+export function updateDebt(id: number, debt: NewDebt): Debt | undefined {
+  db.prepare(
+    `UPDATE debts
+     SET entity = @entity, detail = @detail, principal_cents = @principalCents,
+         interest_rate = @interestRate, term_months = @termMonths
+     WHERE id = @id`
+  ).run({ ...debt, id });
+  return db.prepare('SELECT * FROM debts WHERE id = ?').get(id) as Debt | undefined;
+}
+
+export function deleteDebt(id: number): void {
+  const unlink = db.transaction((debtId: number) => {
+    db.prepare('UPDATE transactions SET debt_id = NULL WHERE debt_id = ?').run(debtId);
+    db.prepare('DELETE FROM debts WHERE id = ?').run(debtId);
+  });
+  unlink(id);
+}
+
+export function listDebts(): Debt[] {
+  return db.prepare('SELECT * FROM debts ORDER BY id ASC').all() as Debt[];
+}
+
+export function getDebtPaidTotal(debtId: number): number {
+  const row = db
+    .prepare(
+      `SELECT COALESCE(SUM(amount_cents), 0) AS total
+       FROM transactions
+       WHERE debt_id = ? AND type = 'expense'`
+    )
+    .get(debtId) as { total: number };
+  return row.total;
+}
+
+export function getDebtPayments(debtId: number): Transaction[] {
+  return db
+    .prepare(
+      `SELECT * FROM transactions WHERE debt_id = ? AND type = 'expense' ORDER BY date DESC, id DESC`
+    )
+    .all(debtId) as Transaction[];
 }
 
 export default db;

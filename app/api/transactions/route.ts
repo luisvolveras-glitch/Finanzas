@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
     detail,
     category,
     date,
+    debtId: null,
   });
 
   const totals = getTotals();

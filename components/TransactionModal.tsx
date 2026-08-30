@@ -12,20 +12,29 @@ export interface EditableTransaction {
   detail: string;
   category: string;
   date: string;
+  debtId: number | null;
+}
+
+export interface DebtOption {
+  id: number;
+  label: string;
 }
 
 export default function TransactionModal({
   trigger,
   initial,
+  debts = [],
 }: {
   trigger: (open: () => void) => React.ReactNode;
   initial?: EditableTransaction;
+  debts?: DebtOption[];
 }) {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<TxType>(initial?.type ?? 'expense');
   const [category, setCategory] = useState(
     initial?.category ?? categoriesByType(initial?.type ?? 'expense')[0].id
   );
+  const [debtId, setDebtId] = useState(initial?.debtId ? String(initial.debtId) : '');
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -35,6 +44,7 @@ export default function TransactionModal({
   function selectType(nextType: TxType) {
     setType(nextType);
     setCategory(categoriesByType(nextType)[0].id);
+    if (nextType === 'income') setDebtId('');
   }
 
   function close() {
@@ -144,6 +154,27 @@ export default function TransactionModal({
                   className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
+
+              {type === 'expense' && debts.length > 0 && (
+                <div>
+                  <label className="text-xs font-medium text-muted">
+                    ¿Es un pago de deuda? (opcional)
+                  </label>
+                  <select
+                    name="debtId"
+                    value={debtId}
+                    onChange={(e) => setDebtId(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                  >
+                    <option value="">No es pago de deuda</option>
+                    {debts.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label className="text-xs font-medium text-muted">Fecha</label>

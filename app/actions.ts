@@ -12,8 +12,10 @@ function parseForm(formData: FormData) {
   const categoryInput = String(formData.get('category') || '');
   const date = String(formData.get('date') || '').slice(0, 10);
   const category = resolveCategoryId(type, categoryInput);
+  const debtIdRaw = String(formData.get('debtId') || '').trim();
+  const debtId = type === 'expense' && debtIdRaw ? Number(debtIdRaw) : null;
 
-  return { type, amountCents: toCents(amount), detail, category, date };
+  return { type, amountCents: toCents(amount), detail, category, date, debtId };
 }
 
 function assertValid(data: ReturnType<typeof parseForm>) {
@@ -36,6 +38,8 @@ export async function createTransaction(formData: FormData) {
   assertValid(data);
   addTransaction(data);
   revalidatePath('/');
+  revalidatePath('/deudas');
+  revalidatePath('/analisis');
 }
 
 export async function editTransaction(id: number, formData: FormData) {
@@ -43,9 +47,13 @@ export async function editTransaction(id: number, formData: FormData) {
   assertValid(data);
   updateTransaction(id, data);
   revalidatePath('/');
+  revalidatePath('/deudas');
+  revalidatePath('/analisis');
 }
 
 export async function removeTransaction(id: number) {
   deleteTransaction(id);
   revalidatePath('/');
+  revalidatePath('/deudas');
+  revalidatePath('/analisis');
 }

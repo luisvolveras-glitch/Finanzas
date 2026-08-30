@@ -1,15 +1,14 @@
 'use client';
 
-import TransactionModal, { type DebtOption } from './TransactionModal';
+import DebtModal from './DebtModal';
 
-export default function AddButton({ debts = [] }: { debts?: DebtOption[] }) {
+export default function AddDebtButton() {
   return (
-    <TransactionModal
-      debts={debts}
+    <DebtModal
       trigger={(open) => (
         <button
           onClick={open}
-          aria-label="Agregar movimiento"
+          aria-label="Agregar deuda"
           className="fixed bottom-24 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-expense text-2xl text-white shadow-lg hover:brightness-105 transition"
         >
           +
