@@ -100,6 +100,7 @@ function addColumnIfMissing(
 
 function migrateColumns(conn: Database.Database) {
   addColumnIfMissing(conn, 'transactions', 'debt_id', 'INTEGER');
+  addColumnIfMissing(conn, 'transactions', 'budget_item_id', 'INTEGER');
   addColumnIfMissing(conn, 'transactions', 'workspace_id', 'INTEGER');
   addColumnIfMissing(conn, 'investments', 'workspace_id', 'INTEGER');
   addColumnIfMissing(conn, 'budget_items', 'workspace_id', 'INTEGER');
@@ -321,6 +322,7 @@ export interface Transaction {
   date: string;
   created_at: string;
   debt_id: number | null;
+  budget_item_id: number | null;
   workspace_id: number;
 }
 
@@ -331,13 +333,14 @@ export interface NewTransaction {
   category: string;
   date: string;
   debtId: number | null;
+  budgetItemId: number | null;
   workspaceId: number;
 }
 
 export function addTransaction(tx: NewTransaction): Transaction {
   const stmt = db.prepare(
-    `INSERT INTO transactions (type, amount_cents, detail, category, date, debt_id, workspace_id)
-     VALUES (@type, @amountCents, @detail, @category, @date, @debtId, @workspaceId)`
+    `INSERT INTO transactions (type, amount_cents, detail, category, date, debt_id, budget_item_id, workspace_id)
+     VALUES (@type, @amountCents, @detail, @category, @date, @debtId, @budgetItemId, @workspaceId)`
   );
   const info = stmt.run(tx);
   return db
@@ -353,7 +356,7 @@ export function updateTransaction(
   db.prepare(
     `UPDATE transactions
      SET type = @type, amount_cents = @amountCents, detail = @detail, category = @category,
-         date = @date, debt_id = @debtId
+         date = @date, debt_id = @debtId, budget_item_id = @budgetItemId
      WHERE id = @id AND workspace_id = @workspaceId`
   ).run({ ...tx, id, workspaceId });
   return db
@@ -611,7 +614,25 @@ export function updateBudgetItem(
 }
 
 export function deleteBudgetItem(id: number, workspaceId: number): void {
-  db.prepare('DELETE FROM budget_items WHERE id = ? AND workspace_id = ?').run(id, workspaceId);
+  const unlink = db.transaction((itemId: number, ws: number) => {
+    db.prepare(
+      'UPDATE transactions SET budget_item_id = NULL WHERE budget_item_id = ? AND workspace_id = ?'
+    ).run(itemId, ws);
+    db.prepare('DELETE FROM budget_items WHERE id = ? AND workspace_id = ?').run(itemId, ws);
+  });
+  unlink(id, workspaceId);
+}
+
+export function getBudgetItemPaidTotal(itemId: number, workspaceId: number, month: string): number {
+  const row = db
+    .prepare(
+      `SELECT COALESCE(SUM(amount_cents), 0) AS total
+       FROM transactions
+       WHERE budget_item_id = ? AND workspace_id = ? AND type = 'expense'
+         AND strftime('%Y-%m', date) = ?`
+    )
+    .get(itemId, workspaceId, month) as { total: number };
+  return row.total;
 }
 
 export function listBudgetItems(workspaceId: number): BudgetItem[] {
@@ -693,6 +714,34 @@ export function getDebtPaidTotal(debtId: number, workspaceId: number): number {
        WHERE debt_id = ? AND type = 'expense' AND workspace_id = ?`
     )
     .get(debtId, workspaceId) as { total: number };
+  return row.total;
+}
+
+export function getDebtPaidTotalForMonth(debtId: number, workspaceId: number, month: string): number {
+  const row = db
+    .prepare(
+      `SELECT COALESCE(SUM(amount_cents), 0) AS total
+       FROM transactions
+       WHERE debt_id = ? AND type = 'expense' AND workspace_id = ?
+         AND strftime('%Y-%m', date) = ?`
+    )
+    .get(debtId, workspaceId, month) as { total: number };
+  return row.total;
+}
+
+export function getDebtPaidTotalUpToMonth(
+  debtId: number,
+  workspaceId: number,
+  month: string
+): number {
+  const row = db
+    .prepare(
+      `SELECT COALESCE(SUM(amount_cents), 0) AS total
+       FROM transactions
+       WHERE debt_id = ? AND type = 'expense' AND workspace_id = ?
+         AND strftime('%Y-%m', date) <= ?`
+    )
+    .get(debtId, workspaceId, month) as { total: number };
   return row.total;
 }
 

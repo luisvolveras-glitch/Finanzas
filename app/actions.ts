@@ -15,8 +15,19 @@ function parseForm(formData: FormData, workspaceId: number) {
   const category = resolveCategoryId(type, categoryInput);
   const debtIdRaw = String(formData.get('debtId') || '').trim();
   const debtId = type === 'expense' && debtIdRaw ? Number(debtIdRaw) : null;
+  const budgetItemIdRaw = String(formData.get('budgetItemId') || '').trim();
+  const budgetItemId = type === 'expense' && budgetItemIdRaw ? Number(budgetItemIdRaw) : null;
 
-  return { type, amountCents: toCents(amount), detail, category, date, debtId, workspaceId };
+  return {
+    type,
+    amountCents: toCents(amount),
+    detail,
+    category,
+    date,
+    debtId,
+    budgetItemId,
+    workspaceId,
+  };
 }
 
 function assertValid(data: ReturnType<typeof parseForm>) {
@@ -41,6 +52,7 @@ export async function createTransaction(formData: FormData) {
   addTransaction(data);
   revalidatePath('/');
   revalidatePath('/deudas');
+  revalidatePath('/presupuesto');
   revalidatePath('/analisis');
 }
 
@@ -51,6 +63,7 @@ export async function editTransaction(id: number, formData: FormData) {
   updateTransaction(id, workspaceId, data);
   revalidatePath('/');
   revalidatePath('/deudas');
+  revalidatePath('/presupuesto');
   revalidatePath('/analisis');
 }
 
@@ -59,5 +72,6 @@ export async function removeTransaction(id: number) {
   deleteTransaction(id, workspaceId);
   revalidatePath('/');
   revalidatePath('/deudas');
+  revalidatePath('/presupuesto');
   revalidatePath('/analisis');
 }

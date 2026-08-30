@@ -3,6 +3,7 @@ import {
   getCategoryTotals,
   getMonthlySummary,
   getTotals,
+  listBudgetItems,
   listDebts,
   listTransactions,
 } from '@/lib/db';
@@ -38,6 +39,10 @@ export default async function Home({
   const debtOptions = listDebts(workspaceId).map((d) => ({
     id: d.id,
     label: d.detail ? `${d.entity} - ${d.detail}` : d.entity,
+  }));
+  const budgetItemOptions = listBudgetItems(workspaceId).map((b) => ({
+    id: b.id,
+    label: b.detail ? `${b.name} - ${b.detail}` : b.name,
   }));
 
   return (
@@ -76,7 +81,11 @@ export default async function Home({
 
         <section className="space-y-3">
           <h2 className="px-1 text-sm font-medium text-muted">Movimientos</h2>
-          <TransactionsList transactions={transactions} debts={debtOptions} />
+          <TransactionsList
+            transactions={transactions}
+            debts={debtOptions}
+            budgetItems={budgetItemOptions}
+          />
         </section>
 
         <section className="space-y-3">
@@ -86,7 +95,7 @@ export default async function Home({
         </section>
       </div>
 
-      <AddButton debts={debtOptions} />
+      <AddButton debts={debtOptions} budgetItems={budgetItemOptions} />
       <BottomNav />
     </main>
   );

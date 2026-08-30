@@ -2,15 +2,17 @@ import { removeTransaction } from '@/app/actions';
 import { getCategory } from '@/lib/categories';
 import { formatMoney } from '@/lib/format';
 import type { Transaction } from '@/lib/db';
-import type { DebtOption } from './TransactionModal';
+import type { BudgetItemOption, DebtOption } from './TransactionModal';
 import EditButton from './EditButton';
 
 export default function TransactionsList({
   transactions,
   debts = [],
+  budgetItems = [],
 }: {
   transactions: Transaction[];
   debts?: DebtOption[];
+  budgetItems?: BudgetItemOption[];
 }) {
   if (transactions.length === 0) {
     return (
@@ -21,6 +23,7 @@ export default function TransactionsList({
   }
 
   const debtsById = new Map(debts.map((d) => [d.id, d.label]));
+  const budgetItemsById = new Map(budgetItems.map((b) => [b.id, b.label]));
 
   return (
     <div className="bg-card rounded-xl2 shadow-soft divide-y divide-border">
@@ -28,6 +31,7 @@ export default function TransactionsList({
         const cat = getCategory(tx.category);
         const isIncome = tx.type === 'income';
         const debtLabel = tx.debt_id ? debtsById.get(tx.debt_id) : undefined;
+        const budgetLabel = tx.budget_item_id ? budgetItemsById.get(tx.budget_item_id) : undefined;
         return (
           <div key={tx.id} className="flex items-center gap-3 px-5 py-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-bg text-lg">
@@ -40,6 +44,9 @@ export default function TransactionsList({
               </p>
               {debtLabel && (
                 <p className="text-xs text-expense truncate">🔗 Pago de deuda: {debtLabel}</p>
+              )}
+              {budgetLabel && (
+                <p className="text-xs text-accent truncate">🔗 Presupuesto: {budgetLabel}</p>
               )}
             </div>
             <p className={`font-semibold ${isIncome ? 'text-income' : 'text-expense'}`}>
@@ -56,8 +63,10 @@ export default function TransactionsList({
                   category: tx.category,
                   date: tx.date,
                   debtId: tx.debt_id,
+                  budgetItemId: tx.budget_item_id,
                 }}
                 debts={debts}
+                budgetItems={budgetItems}
               />
               <form action={removeTransaction.bind(null, tx.id)}>
                 <button aria-label="Eliminar movimiento" className="text-muted hover:text-expense px-1">

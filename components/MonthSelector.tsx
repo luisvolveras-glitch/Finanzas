@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { monthLabel } from '@/lib/format';
 
 export default function MonthSelector({
@@ -11,12 +11,13 @@ export default function MonthSelector({
   months: string[];
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const options = months.includes(month) ? months : [month, ...months];
 
   return (
     <select
       value={month}
-      onChange={(e) => router.push(`/?month=${e.target.value}`)}
+      onChange={(e) => router.push(`${pathname}?month=${e.target.value}`)}
       className="rounded-full bg-pillDark text-white text-sm font-medium px-4 py-2 focus:outline-none appearance-none"
     >
       {options.map((m) => (

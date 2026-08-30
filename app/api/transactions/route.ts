@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
     category,
     date,
     debtId: null,
+    budgetItemId: null,
     workspaceId,
   });
 

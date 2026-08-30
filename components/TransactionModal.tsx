@@ -13,9 +13,15 @@ export interface EditableTransaction {
   category: string;
   date: string;
   debtId: number | null;
+  budgetItemId: number | null;
 }
 
 export interface DebtOption {
+  id: number;
+  label: string;
+}
+
+export interface BudgetItemOption {
   id: number;
   label: string;
 }
@@ -24,10 +30,12 @@ export default function TransactionModal({
   trigger,
   initial,
   debts = [],
+  budgetItems = [],
 }: {
   trigger: (open: () => void) => React.ReactNode;
   initial?: EditableTransaction;
   debts?: DebtOption[];
+  budgetItems?: BudgetItemOption[];
 }) {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<TxType>(initial?.type ?? 'expense');
@@ -35,6 +43,9 @@ export default function TransactionModal({
     initial?.category ?? categoriesByType(initial?.type ?? 'expense')[0].id
   );
   const [debtId, setDebtId] = useState(initial?.debtId ? String(initial.debtId) : '');
+  const [budgetItemId, setBudgetItemId] = useState(
+    initial?.budgetItemId ? String(initial.budgetItemId) : ''
+  );
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -44,7 +55,10 @@ export default function TransactionModal({
   function selectType(nextType: TxType) {
     setType(nextType);
     setCategory(categoriesByType(nextType)[0].id);
-    if (nextType === 'income') setDebtId('');
+    if (nextType === 'income') {
+      setDebtId('');
+      setBudgetItemId('');
+    }
   }
 
   function close() {
@@ -170,6 +184,27 @@ export default function TransactionModal({
                     {debts.map((d) => (
                       <option key={d.id} value={d.id}>
                         {d.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {type === 'expense' && budgetItems.length > 0 && (
+                <div>
+                  <label className="text-xs font-medium text-muted">
+                    ¿Es un pago de presupuesto? (opcional)
+                  </label>
+                  <select
+                    name="budgetItemId"
+                    value={budgetItemId}
+                    onChange={(e) => setBudgetItemId(e.target.value)}
+                    className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                  >
+                    <option value="">No es pago de presupuesto</option>
+                    {budgetItems.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.label}
                       </option>
                     ))}
                   </select>
