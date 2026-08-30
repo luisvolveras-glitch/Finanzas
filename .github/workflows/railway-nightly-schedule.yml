@@ -1,0 +1,136 @@
+name: Apagar y prender Mis Finanzas en Railway (horario nocturno)
+
+# Apaga la app a las 11:00 pm hora Colombia y la vuelve a prender a las 6:00 am.
+# Colombia no tiene horario de verano, así que los horarios UTC de abajo no cambian en el año.
+#   11:00 pm Colombia = 04:00 UTC
+#    6:00 am Colombia = 11:00 UTC
+#
+# No borra el servicio ni el deployment: solo lo detiene (deploymentStop) y
+# luego dispara un nuevo despliegue (serviceInstanceDeploy) para prenderlo.
+# Los datos (movimientos, presupuesto, deudas, usuarios) viven en el volumen
+# persistente de Railway, no en el deployment, así que no se pierden al apagar.
+#
+# Requiere un secreto del repositorio llamado RAILWAY_TOKEN con un
+# "Project Token" de Railway (ver instrucciones del asistente).
+# Si el proyecto de Railway tiene más de un servicio, define además la
+# variable del repositorio RAILWAY_SERVICE_NAME con el nombre exacto del
+# servicio de la app.
+
+on:
+  schedule:
+    - cron: '0 4 * * *'
+    - cron: '0 11 * * *'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Qué hacer'
+        required: true
+        default: stop
+        type: choice
+        options:
+          - stop
+          - start
+
+permissions:
+  contents: read
+
+concurrency:
+  group: railway-nightly-schedule
+  cancel-in-progress: false
+
+jobs:
+  toggle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determinar acción (apagar/prender)
+        id: action
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "action=${{ inputs.action }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "0 4 * * *" ]; then
+            echo "action=stop" >> "$GITHUB_OUTPUT"
+          else
+            echo "action=start" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Ejecutar en Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME }}
+          ACTION: ${{ steps.action.outputs.action }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${RAILWAY_TOKEN:-}" ]; then
+            echo "::error::Falta el secreto RAILWAY_TOKEN en este repositorio (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+
+          API=https://backboard.railway.com/graphql/v2
+
+          gql() {
+            curl -sS -X POST "$API" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$1"
+          }
+
+          fail_if_errors() {
+            if echo "$1" | jq -e 'has("errors")' > /dev/null; then
+              echo "$1"
+              echo "::error::La API de Railway devolvió un error."
+              exit 1
+            fi
+          }
+
+          echo "Acción a ejecutar: $ACTION"
+
+          INFO=$(gql '{"query":"query { projectToken { projectId environmentId } }"}')
+          fail_if_errors "$INFO"
+          PROJECT_ID=$(echo "$INFO" | jq -r '.data.projectToken.projectId')
+          ENV_ID=$(echo "$INFO" | jq -r '.data.projectToken.environmentId')
+          echo "Proyecto: $PROJECT_ID  Entorno: $ENV_ID"
+
+          SERVICES=$(gql "{\"query\":\"query(\$id: String!) { project(id: \$id) { services { edges { node { id name } } } } }\",\"variables\":{\"id\":\"$PROJECT_ID\"}}")
+          fail_if_errors "$SERVICES"
+          COUNT=$(echo "$SERVICES" | jq '.data.project.services.edges | length')
+
+          if [ "$COUNT" -eq 1 ]; then
+            SERVICE_ID=$(echo "$SERVICES" | jq -r '.data.project.services.edges[0].node.id')
+          elif [ -n "${RAILWAY_SERVICE_NAME:-}" ]; then
+            SERVICE_ID=$(echo "$SERVICES" | jq -r --arg n "$RAILWAY_SERVICE_NAME" '.data.project.services.edges[] | select(.node.name==$n) | .node.id')
+            if [ -z "$SERVICE_ID" ] || [ "$SERVICE_ID" = "null" ]; then
+              echo "::error::No se encontró un servicio llamado '$RAILWAY_SERVICE_NAME'. Servicios disponibles:"
+              echo "$SERVICES" | jq -r '.data.project.services.edges[].node.name'
+              exit 1
+            fi
+          else
+            echo "::error::El proyecto tiene varios servicios. Define la variable RAILWAY_SERVICE_NAME con el nombre exacto del servicio de la app. Servicios disponibles:"
+            echo "$SERVICES" | jq -r '.data.project.services.edges[].node.name'
+            exit 1
+          fi
+          echo "Servicio: $SERVICE_ID"
+
+          if [ "$ACTION" = "stop" ]; then
+            DEPLOYMENTS=$(gql "{\"query\":\"query(\$input: DeploymentListInput!) { deployments(input: \$input, first: 5) { edges { node { id status } } } }\",\"variables\":{\"input\":{\"projectId\":\"$PROJECT_ID\",\"serviceId\":\"$SERVICE_ID\",\"environmentId\":\"$ENV_ID\"}}}")
+            fail_if_errors "$DEPLOYMENTS"
+            echo "$DEPLOYMENTS"
+
+            DEPLOYMENT_ID=$(echo "$DEPLOYMENTS" | jq -r '[.data.deployments.edges[].node | select(.status=="SUCCESS")][0].id // empty')
+            if [ -z "$DEPLOYMENT_ID" ]; then
+              echo "No hay un deployment activo (SUCCESS) para detener. Puede que ya esté apagada. No se hace nada."
+              exit 0
+            fi
+
+            echo "Deteniendo deployment $DEPLOYMENT_ID"
+            RESULT=$(gql "{\"query\":\"mutation(\$id: String!) { deploymentStop(id: \$id) }\",\"variables\":{\"id\":\"$DEPLOYMENT_ID\"}}")
+            echo "$RESULT"
+            fail_if_errors "$RESULT"
+            echo "App detenida correctamente."
+          else
+            echo "Iniciando un nuevo despliegue del servicio $SERVICE_ID"
+            RESULT=$(gql "{\"query\":\"mutation(\$serviceId: String!, \$environmentId: String!) { serviceInstanceDeploy(serviceId: \$serviceId, environmentId: \$environmentId) }\",\"variables\":{\"serviceId\":\"$SERVICE_ID\",\"environmentId\":\"$ENV_ID\"}}")
+            echo "$RESULT"
+            fail_if_errors "$RESULT"
+            echo "App iniciada correctamente."
+          fi
