@@ -3,8 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import { addDebt, deleteDebt, updateDebt } from '@/lib/db';
 import { toCents } from '@/lib/format';
+import { requireWorkspaceId } from '@/lib/session';
 
-function parseForm(formData: FormData) {
+function parseForm(formData: FormData, workspaceId: number) {
   const entity = String(formData.get('entity') || '').trim();
   const detail = String(formData.get('detail') || '').trim();
   const amount = Number(formData.get('amount'));
@@ -13,7 +14,7 @@ function parseForm(formData: FormData) {
   const interestRate = rateRaw ? Number(rateRaw) : null;
   const termMonths = termRaw ? Number(termRaw) : null;
 
-  return { entity, detail, principalCents: toCents(amount), interestRate, termMonths };
+  return { entity, detail, principalCents: toCents(amount), interestRate, termMonths, workspaceId };
 }
 
 function assertValid(data: ReturnType<typeof parseForm>) {
@@ -32,7 +33,8 @@ function assertValid(data: ReturnType<typeof parseForm>) {
 }
 
 export async function createDebt(formData: FormData) {
-  const data = parseForm(formData);
+  const workspaceId = await requireWorkspaceId();
+  const data = parseForm(formData, workspaceId);
   assertValid(data);
   addDebt(data);
   revalidatePath('/deudas');
@@ -40,15 +42,17 @@ export async function createDebt(formData: FormData) {
 }
 
 export async function editDebt(id: number, formData: FormData) {
-  const data = parseForm(formData);
+  const workspaceId = await requireWorkspaceId();
+  const data = parseForm(formData, workspaceId);
   assertValid(data);
-  updateDebt(id, data);
+  updateDebt(id, workspaceId, data);
   revalidatePath('/deudas');
   revalidatePath('/');
 }
 
 export async function removeDebt(id: number) {
-  deleteDebt(id);
+  const workspaceId = await requireWorkspaceId();
+  deleteDebt(id, workspaceId);
   revalidatePath('/deudas');
   revalidatePath('/');
 }

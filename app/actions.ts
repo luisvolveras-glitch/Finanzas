@@ -4,8 +4,9 @@ import { revalidatePath } from 'next/cache';
 import { addTransaction, deleteTransaction, updateTransaction } from '@/lib/db';
 import { resolveCategoryId, type TxType } from '@/lib/categories';
 import { toCents } from '@/lib/format';
+import { requireWorkspaceId } from '@/lib/session';
 
-function parseForm(formData: FormData) {
+function parseForm(formData: FormData, workspaceId: number) {
   const type = String(formData.get('type') || '') as TxType;
   const amount = Number(formData.get('amount'));
   const detail = String(formData.get('detail') || '').trim();
@@ -15,7 +16,7 @@ function parseForm(formData: FormData) {
   const debtIdRaw = String(formData.get('debtId') || '').trim();
   const debtId = type === 'expense' && debtIdRaw ? Number(debtIdRaw) : null;
 
-  return { type, amountCents: toCents(amount), detail, category, date, debtId };
+  return { type, amountCents: toCents(amount), detail, category, date, debtId, workspaceId };
 }
 
 function assertValid(data: ReturnType<typeof parseForm>) {
@@ -34,7 +35,8 @@ function assertValid(data: ReturnType<typeof parseForm>) {
 }
 
 export async function createTransaction(formData: FormData) {
-  const data = parseForm(formData);
+  const workspaceId = await requireWorkspaceId();
+  const data = parseForm(formData, workspaceId);
   assertValid(data);
   addTransaction(data);
   revalidatePath('/');
@@ -43,16 +45,18 @@ export async function createTransaction(formData: FormData) {
 }
 
 export async function editTransaction(id: number, formData: FormData) {
-  const data = parseForm(formData);
+  const workspaceId = await requireWorkspaceId();
+  const data = parseForm(formData, workspaceId);
   assertValid(data);
-  updateTransaction(id, data);
+  updateTransaction(id, workspaceId, data);
   revalidatePath('/');
   revalidatePath('/deudas');
   revalidatePath('/analisis');
 }
 
 export async function removeTransaction(id: number) {
-  deleteTransaction(id);
+  const workspaceId = await requireWorkspaceId();
+  deleteTransaction(id, workspaceId);
   revalidatePath('/');
   revalidatePath('/deudas');
   revalidatePath('/analisis');

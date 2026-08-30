@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
 import type { TxType } from './categories';
+import { hashPassword } from './password';
 
 const dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'finanzas.db');
 
@@ -57,38 +58,99 @@ function createConnection() {
       term_months INTEGER,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS workspaces (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      first_name TEXT NOT NULL DEFAULT '',
+      last_name TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL DEFAULT '',
+      reason TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
+      is_admin INTEGER NOT NULL DEFAULT 0,
+      workspace_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
-  migrateTransactionsDebtId(conn);
+  migrateColumns(conn);
+  bootstrapAdmin(conn);
   seedBudgetItems(conn);
   seedDebts(conn);
   return conn;
 }
 
-function migrateTransactionsDebtId(conn: Database.Database) {
-  const cols = conn.prepare('PRAGMA table_info(transactions)').all() as { name: string }[];
-  if (!cols.some((c) => c.name === 'debt_id')) {
-    conn.exec('ALTER TABLE transactions ADD COLUMN debt_id INTEGER');
+function addColumnIfMissing(
+  conn: Database.Database,
+  table: string,
+  column: string,
+  definition: string
+) {
+  const cols = conn.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!cols.some((c) => c.name === column)) {
+    conn.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
   }
 }
 
-function seedDebts(conn: Database.Database) {
-  const { count } = conn.prepare('SELECT COUNT(*) AS count FROM debts').get() as {
+function migrateColumns(conn: Database.Database) {
+  addColumnIfMissing(conn, 'transactions', 'debt_id', 'INTEGER');
+  addColumnIfMissing(conn, 'transactions', 'workspace_id', 'INTEGER');
+  addColumnIfMissing(conn, 'investments', 'workspace_id', 'INTEGER');
+  addColumnIfMissing(conn, 'budget_items', 'workspace_id', 'INTEGER');
+  addColumnIfMissing(conn, 'debts', 'workspace_id', 'INTEGER');
+}
+
+function bootstrapAdmin(conn: Database.Database) {
+  const { count } = conn.prepare('SELECT COUNT(*) AS count FROM users').get() as {
     count: number;
   };
   if (count > 0) return;
 
-  const seedRows: [string, string, number, number | null, number | null][] = [
-    ['Sra Marina', 'Préstamo gastos variados', 120000000, null, 4],
-    ['Alison / Pareja', 'Moto precio total', 115700000, null, null],
-  ];
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminPassword = process.env.ADMIN_PASSWORD || process.env.APP_PASSWORD;
+  if (!adminEmail || !adminPassword) return;
 
-  const insert = conn.prepare(
-    `INSERT INTO debts (entity, detail, principal_cents, interest_rate, term_months) VALUES (?, ?, ?, ?, ?)`
-  );
-  const insertMany = conn.transaction((rows: typeof seedRows) => {
-    for (const row of rows) insert.run(...row);
+  // El build de Next puede levantar varios procesos en paralelo que importan
+  // este módulo a la vez; si dos intentan crear el admin al mismo tiempo, el
+  // segundo choca con la restricción UNIQUE del correo. Eso significa que el
+  // primero ya lo hizo, así que simplemente lo ignoramos.
+  try {
+    runBootstrapTransaction(conn, adminEmail, adminPassword);
+  } catch (err) {
+    if (err instanceof Error && /UNIQUE/i.test(err.message)) return;
+    throw err;
+  }
+}
+
+function runBootstrapTransaction(conn: Database.Database, adminEmail: string, adminPassword: string) {
+  const bootstrap = conn.transaction(() => {
+    const wsInfo = conn.prepare('INSERT INTO workspaces (name) VALUES (?)').run('Mi espacio');
+    const workspaceId = wsInfo.lastInsertRowid as number;
+
+    conn
+      .prepare(
+        `INSERT INTO users (email, password_hash, first_name, last_name, phone, reason, status, is_admin, workspace_id)
+         VALUES (@email, @passwordHash, 'Admin', '', '', '', 'approved', 1, @workspaceId)`
+      )
+      .run({
+        email: adminEmail.toLowerCase().trim(),
+        passwordHash: hashPassword(adminPassword),
+        workspaceId,
+      });
+
+    for (const table of ['transactions', 'investments', 'budget_items', 'debts']) {
+      conn
+        .prepare(`UPDATE ${table} SET workspace_id = ? WHERE workspace_id IS NULL`)
+        .run(workspaceId);
+    }
   });
-  insertMany(seedRows);
+  bootstrap();
 }
 
 function seedBudgetItems(conn: Database.Database) {
@@ -96,6 +158,11 @@ function seedBudgetItems(conn: Database.Database) {
     count: number;
   };
   if (count > 0) return;
+
+  const admin = conn.prepare('SELECT workspace_id FROM users WHERE is_admin = 1 LIMIT 1').get() as
+    | { workspace_id: number }
+    | undefined;
+  if (!admin) return;
 
   const seedRows: [string, string, string, number][] = [
     ['Inmobiliaria', 'Arriendo casa', '1 de cada mes', 50000000],
@@ -112,10 +179,35 @@ function seedBudgetItems(conn: Database.Database) {
   ];
 
   const insert = conn.prepare(
-    `INSERT INTO budget_items (name, detail, frequency, amount_cents) VALUES (?, ?, ?, ?)`
+    `INSERT INTO budget_items (name, detail, frequency, amount_cents, workspace_id) VALUES (?, ?, ?, ?, ?)`
   );
   const insertMany = conn.transaction((rows: typeof seedRows) => {
-    for (const row of rows) insert.run(...row);
+    for (const row of rows) insert.run(...row, admin.workspace_id);
+  });
+  insertMany(seedRows);
+}
+
+function seedDebts(conn: Database.Database) {
+  const { count } = conn.prepare('SELECT COUNT(*) AS count FROM debts').get() as {
+    count: number;
+  };
+  if (count > 0) return;
+
+  const admin = conn.prepare('SELECT workspace_id FROM users WHERE is_admin = 1 LIMIT 1').get() as
+    | { workspace_id: number }
+    | undefined;
+  if (!admin) return;
+
+  const seedRows: [string, string, number, number | null, number | null][] = [
+    ['Sra Marina', 'Préstamo gastos variados', 120000000, null, 4],
+    ['Alison / Pareja', 'Moto precio total', 115700000, null, null],
+  ];
+
+  const insert = conn.prepare(
+    `INSERT INTO debts (entity, detail, principal_cents, interest_rate, term_months, workspace_id) VALUES (?, ?, ?, ?, ?, ?)`
+  );
+  const insertMany = conn.transaction((rows: typeof seedRows) => {
+    for (const row of rows) insert.run(...row, admin.workspace_id);
   });
   insertMany(seedRows);
 }
@@ -123,6 +215,89 @@ function seedBudgetItems(conn: Database.Database) {
 const db = global.__finanzasDb ?? createConnection();
 if (process.env.NODE_ENV !== 'production') {
   global.__finanzasDb = db;
+}
+
+export interface Workspace {
+  id: number;
+  name: string;
+  created_at: string;
+}
+
+export function createWorkspace(name: string): number {
+  const info = db.prepare('INSERT INTO workspaces (name) VALUES (?)').run(name);
+  return info.lastInsertRowid as number;
+}
+
+export type UserStatus = 'pending' | 'approved' | 'rejected';
+
+export interface User {
+  id: number;
+  email: string;
+  password_hash: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  reason: string;
+  status: UserStatus;
+  is_admin: number;
+  workspace_id: number;
+  created_at: string;
+}
+
+export interface NewUser {
+  email: string;
+  passwordHash: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  reason: string;
+  workspaceId: number;
+}
+
+export function createUser(user: NewUser): User {
+  const stmt = db.prepare(
+    `INSERT INTO users (email, password_hash, first_name, last_name, phone, reason, workspace_id)
+     VALUES (@email, @passwordHash, @firstName, @lastName, @phone, @reason, @workspaceId)`
+  );
+  const info = stmt.run({ ...user, email: user.email.toLowerCase().trim() });
+  return db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid) as User;
+}
+
+export function getUserByEmail(email: string): User | undefined {
+  return db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase().trim()) as
+    | User
+    | undefined;
+}
+
+export function getUserById(id: number): User | undefined {
+  return db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | undefined;
+}
+
+export function listPendingUsers(): User[] {
+  return db
+    .prepare("SELECT * FROM users WHERE status = 'pending' ORDER BY created_at ASC")
+    .all() as User[];
+}
+
+export function listApprovedUsers(): User[] {
+  return db
+    .prepare("SELECT * FROM users WHERE status = 'approved' ORDER BY created_at ASC")
+    .all() as User[];
+}
+
+export function approveUser(id: number): void {
+  db.prepare("UPDATE users SET status = 'approved' WHERE id = ?").run(id);
+}
+
+export function rejectUser(id: number): void {
+  db.prepare("UPDATE users SET status = 'rejected' WHERE id = ?").run(id);
+}
+
+export function getAdminWorkspaceId(): number | undefined {
+  const row = db
+    .prepare('SELECT workspace_id FROM users WHERE is_admin = 1 LIMIT 1')
+    .get() as { workspace_id: number } | undefined;
+  return row?.workspace_id;
 }
 
 export interface Transaction {
@@ -134,6 +309,7 @@ export interface Transaction {
   date: string;
   created_at: string;
   debt_id: number | null;
+  workspace_id: number;
 }
 
 export interface NewTransaction {
@@ -143,12 +319,13 @@ export interface NewTransaction {
   category: string;
   date: string;
   debtId: number | null;
+  workspaceId: number;
 }
 
 export function addTransaction(tx: NewTransaction): Transaction {
   const stmt = db.prepare(
-    `INSERT INTO transactions (type, amount_cents, detail, category, date, debt_id)
-     VALUES (@type, @amountCents, @detail, @category, @date, @debtId)`
+    `INSERT INTO transactions (type, amount_cents, detail, category, date, debt_id, workspace_id)
+     VALUES (@type, @amountCents, @detail, @category, @date, @debtId, @workspaceId)`
   );
   const info = stmt.run(tx);
   return db
@@ -156,22 +333,30 @@ export function addTransaction(tx: NewTransaction): Transaction {
     .get(info.lastInsertRowid) as Transaction;
 }
 
-export function updateTransaction(id: number, tx: NewTransaction): Transaction | undefined {
+export function updateTransaction(
+  id: number,
+  workspaceId: number,
+  tx: NewTransaction
+): Transaction | undefined {
   db.prepare(
     `UPDATE transactions
      SET type = @type, amount_cents = @amountCents, detail = @detail, category = @category,
          date = @date, debt_id = @debtId
-     WHERE id = @id`
-  ).run({ ...tx, id });
-  return db.prepare('SELECT * FROM transactions WHERE id = ?').get(id) as Transaction | undefined;
+     WHERE id = @id AND workspace_id = @workspaceId`
+  ).run({ ...tx, id, workspaceId });
+  return db
+    .prepare('SELECT * FROM transactions WHERE id = ? AND workspace_id = ?')
+    .get(id, workspaceId) as Transaction | undefined;
 }
 
-export function deleteTransaction(id: number): void {
-  db.prepare('DELETE FROM transactions WHERE id = ?').run(id);
+export function deleteTransaction(id: number, workspaceId: number): void {
+  db.prepare('DELETE FROM transactions WHERE id = ? AND workspace_id = ?').run(id, workspaceId);
 }
 
-export function getTransaction(id: number): Transaction | undefined {
-  return db.prepare('SELECT * FROM transactions WHERE id = ?').get(id) as Transaction | undefined;
+export function getTransaction(id: number, workspaceId: number): Transaction | undefined {
+  return db
+    .prepare('SELECT * FROM transactions WHERE id = ? AND workspace_id = ?')
+    .get(id, workspaceId) as Transaction | undefined;
 }
 
 export interface ListFilters {
@@ -180,9 +365,9 @@ export interface ListFilters {
   limit?: number;
 }
 
-export function listTransactions(filters: ListFilters = {}): Transaction[] {
-  const clauses: string[] = [];
-  const params: Record<string, unknown> = {};
+export function listTransactions(workspaceId: number, filters: ListFilters = {}): Transaction[] {
+  const clauses: string[] = ['workspace_id = @workspaceId'];
+  const params: Record<string, unknown> = { workspaceId };
 
   if (filters.month) {
     clauses.push("strftime('%Y-%m', date) = @month");
@@ -193,7 +378,7 @@ export function listTransactions(filters: ListFilters = {}): Transaction[] {
     params.type = filters.type;
   }
 
-  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  const where = `WHERE ${clauses.join(' AND ')}`;
   const limit = filters.limit ? `LIMIT ${Number(filters.limit)}` : '';
 
   return db
@@ -206,8 +391,10 @@ export interface PeriodTotals {
   expense_cents: number;
 }
 
-export function getTotals(month?: string): PeriodTotals {
-  const where = month ? "WHERE strftime('%Y-%m', date) = @month" : '';
+export function getTotals(workspaceId: number, month?: string): PeriodTotals {
+  const where = month
+    ? "WHERE workspace_id = @workspaceId AND strftime('%Y-%m', date) = @month"
+    : 'WHERE workspace_id = @workspaceId';
   const row = db
     .prepare(
       `SELECT
@@ -215,7 +402,7 @@ export function getTotals(month?: string): PeriodTotals {
          COALESCE(SUM(CASE WHEN type = 'expense' THEN amount_cents ELSE 0 END), 0) AS expense_cents
        FROM transactions ${where}`
     )
-    .get(month ? { month } : {}) as PeriodTotals;
+    .get(month ? { workspaceId, month } : { workspaceId }) as PeriodTotals;
   return row;
 }
 
@@ -225,7 +412,7 @@ export interface MonthlySummaryRow {
   expense_cents: number;
 }
 
-export function getMonthlySummary(limit = 12): MonthlySummaryRow[] {
+export function getMonthlySummary(workspaceId: number, limit = 12): MonthlySummaryRow[] {
   return db
     .prepare(
       `SELECT
@@ -233,11 +420,12 @@ export function getMonthlySummary(limit = 12): MonthlySummaryRow[] {
          COALESCE(SUM(CASE WHEN type = 'income' THEN amount_cents ELSE 0 END), 0) AS income_cents,
          COALESCE(SUM(CASE WHEN type = 'expense' THEN amount_cents ELSE 0 END), 0) AS expense_cents
        FROM transactions
+       WHERE workspace_id = ?
        GROUP BY month
        ORDER BY month DESC
        LIMIT ?`
     )
-    .all(limit) as MonthlySummaryRow[];
+    .all(workspaceId, limit) as MonthlySummaryRow[];
 }
 
 export interface CategoryTotalRow {
@@ -246,8 +434,10 @@ export interface CategoryTotalRow {
   total_cents: number;
 }
 
-export function getCategoryTotals(month?: string): CategoryTotalRow[] {
-  const where = month ? "WHERE strftime('%Y-%m', date) = @month" : '';
+export function getCategoryTotals(workspaceId: number, month?: string): CategoryTotalRow[] {
+  const where = month
+    ? "WHERE workspace_id = @workspaceId AND strftime('%Y-%m', date) = @month"
+    : 'WHERE workspace_id = @workspaceId';
   return db
     .prepare(
       `SELECT category, type, SUM(amount_cents) AS total_cents
@@ -255,16 +445,16 @@ export function getCategoryTotals(month?: string): CategoryTotalRow[] {
        GROUP BY category, type
        ORDER BY total_cents DESC`
     )
-    .all(month ? { month } : {}) as CategoryTotalRow[];
+    .all(month ? { workspaceId, month } : { workspaceId }) as CategoryTotalRow[];
 }
 
-export function getAvailableMonths(): string[] {
+export function getAvailableMonths(workspaceId: number): string[] {
   return (
     db
       .prepare(
-        `SELECT DISTINCT strftime('%Y-%m', date) AS month FROM transactions ORDER BY month DESC`
+        `SELECT DISTINCT strftime('%Y-%m', date) AS month FROM transactions WHERE workspace_id = ? ORDER BY month DESC`
       )
-      .all() as { month: string }[]
+      .all(workspaceId) as { month: string }[]
   ).map((r) => r.month);
 }
 
@@ -276,6 +466,7 @@ export interface Investment {
   interest_rate: number | null;
   date: string;
   created_at: string;
+  workspace_id: number;
 }
 
 export interface NewInvestment {
@@ -284,12 +475,13 @@ export interface NewInvestment {
   amountCents: number;
   interestRate: number | null;
   date: string;
+  workspaceId: number;
 }
 
 export function addInvestment(inv: NewInvestment): Investment {
   const stmt = db.prepare(
-    `INSERT INTO investments (category, name, amount_cents, interest_rate, date)
-     VALUES (@category, @name, @amountCents, @interestRate, @date)`
+    `INSERT INTO investments (category, name, amount_cents, interest_rate, date, workspace_id)
+     VALUES (@category, @name, @amountCents, @interestRate, @date, @workspaceId)`
   );
   const info = stmt.run(inv);
   return db
@@ -297,24 +489,30 @@ export function addInvestment(inv: NewInvestment): Investment {
     .get(info.lastInsertRowid) as Investment;
 }
 
-export function updateInvestment(id: number, inv: NewInvestment): Investment | undefined {
+export function updateInvestment(
+  id: number,
+  workspaceId: number,
+  inv: NewInvestment
+): Investment | undefined {
   db.prepare(
     `UPDATE investments
      SET category = @category, name = @name, amount_cents = @amountCents,
          interest_rate = @interestRate, date = @date
-     WHERE id = @id`
-  ).run({ ...inv, id });
-  return db.prepare('SELECT * FROM investments WHERE id = ?').get(id) as Investment | undefined;
-}
-
-export function deleteInvestment(id: number): void {
-  db.prepare('DELETE FROM investments WHERE id = ?').run(id);
-}
-
-export function listInvestments(limit = 200): Investment[] {
+     WHERE id = @id AND workspace_id = @workspaceId`
+  ).run({ ...inv, id, workspaceId });
   return db
-    .prepare('SELECT * FROM investments ORDER BY date DESC, id DESC LIMIT ?')
-    .all(limit) as Investment[];
+    .prepare('SELECT * FROM investments WHERE id = ? AND workspace_id = ?')
+    .get(id, workspaceId) as Investment | undefined;
+}
+
+export function deleteInvestment(id: number, workspaceId: number): void {
+  db.prepare('DELETE FROM investments WHERE id = ? AND workspace_id = ?').run(id, workspaceId);
+}
+
+export function listInvestments(workspaceId: number, limit = 200): Investment[] {
+  return db
+    .prepare('SELECT * FROM investments WHERE workspace_id = ? ORDER BY date DESC, id DESC LIMIT ?')
+    .all(workspaceId, limit) as Investment[];
 }
 
 export interface InvestmentTotals {
@@ -322,7 +520,7 @@ export interface InvestmentTotals {
   weighted_rate: number | null;
 }
 
-export function getInvestmentTotals(): InvestmentTotals {
+export function getInvestmentTotals(workspaceId: number): InvestmentTotals {
   const row = db
     .prepare(
       `SELECT
@@ -331,9 +529,10 @@ export function getInvestmentTotals(): InvestmentTotals {
            THEN SUM(amount_cents * COALESCE(interest_rate, 0)) * 1.0 / SUM(amount_cents)
            ELSE NULL
          END AS weighted_rate
-       FROM investments`
+       FROM investments
+       WHERE workspace_id = ?`
     )
-    .get() as InvestmentTotals;
+    .get(workspaceId) as InvestmentTotals;
   return row;
 }
 
@@ -343,15 +542,16 @@ export interface InvestmentCategoryTotalRow {
   count: number;
 }
 
-export function getInvestmentCategoryTotals(): InvestmentCategoryTotalRow[] {
+export function getInvestmentCategoryTotals(workspaceId: number): InvestmentCategoryTotalRow[] {
   return db
     .prepare(
       `SELECT category, SUM(amount_cents) AS total_cents, COUNT(*) AS count
        FROM investments
+       WHERE workspace_id = ?
        GROUP BY category
        ORDER BY total_cents DESC`
     )
-    .all() as InvestmentCategoryTotalRow[];
+    .all(workspaceId) as InvestmentCategoryTotalRow[];
 }
 
 export interface BudgetItem {
@@ -361,6 +561,7 @@ export interface BudgetItem {
   frequency: string;
   amount_cents: number;
   created_at: string;
+  workspace_id: number;
 }
 
 export interface NewBudgetItem {
@@ -368,12 +569,13 @@ export interface NewBudgetItem {
   detail: string;
   frequency: string;
   amountCents: number;
+  workspaceId: number;
 }
 
 export function addBudgetItem(item: NewBudgetItem): BudgetItem {
   const stmt = db.prepare(
-    `INSERT INTO budget_items (name, detail, frequency, amount_cents)
-     VALUES (@name, @detail, @frequency, @amountCents)`
+    `INSERT INTO budget_items (name, detail, frequency, amount_cents, workspace_id)
+     VALUES (@name, @detail, @frequency, @amountCents, @workspaceId)`
   );
   const info = stmt.run(item);
   return db
@@ -381,27 +583,35 @@ export function addBudgetItem(item: NewBudgetItem): BudgetItem {
     .get(info.lastInsertRowid) as BudgetItem;
 }
 
-export function updateBudgetItem(id: number, item: NewBudgetItem): BudgetItem | undefined {
+export function updateBudgetItem(
+  id: number,
+  workspaceId: number,
+  item: NewBudgetItem
+): BudgetItem | undefined {
   db.prepare(
     `UPDATE budget_items
      SET name = @name, detail = @detail, frequency = @frequency, amount_cents = @amountCents
-     WHERE id = @id`
-  ).run({ ...item, id });
-  return db.prepare('SELECT * FROM budget_items WHERE id = ?').get(id) as BudgetItem | undefined;
+     WHERE id = @id AND workspace_id = @workspaceId`
+  ).run({ ...item, id, workspaceId });
+  return db
+    .prepare('SELECT * FROM budget_items WHERE id = ? AND workspace_id = ?')
+    .get(id, workspaceId) as BudgetItem | undefined;
 }
 
-export function deleteBudgetItem(id: number): void {
-  db.prepare('DELETE FROM budget_items WHERE id = ?').run(id);
+export function deleteBudgetItem(id: number, workspaceId: number): void {
+  db.prepare('DELETE FROM budget_items WHERE id = ? AND workspace_id = ?').run(id, workspaceId);
 }
 
-export function listBudgetItems(): BudgetItem[] {
-  return db.prepare('SELECT * FROM budget_items ORDER BY id ASC').all() as BudgetItem[];
+export function listBudgetItems(workspaceId: number): BudgetItem[] {
+  return db
+    .prepare('SELECT * FROM budget_items WHERE workspace_id = ? ORDER BY id ASC')
+    .all(workspaceId) as BudgetItem[];
 }
 
-export function getBudgetTotal(): number {
+export function getBudgetTotal(workspaceId: number): number {
   const row = db
-    .prepare('SELECT COALESCE(SUM(amount_cents), 0) AS total FROM budget_items')
-    .get() as { total: number };
+    .prepare('SELECT COALESCE(SUM(amount_cents), 0) AS total FROM budget_items WHERE workspace_id = ?')
+    .get(workspaceId) as { total: number };
   return row.total;
 }
 
@@ -413,6 +623,7 @@ export interface Debt {
   interest_rate: number | null;
   term_months: number | null;
   created_at: string;
+  workspace_id: number;
 }
 
 export interface NewDebt {
@@ -421,56 +632,64 @@ export interface NewDebt {
   principalCents: number;
   interestRate: number | null;
   termMonths: number | null;
+  workspaceId: number;
 }
 
 export function addDebt(debt: NewDebt): Debt {
   const stmt = db.prepare(
-    `INSERT INTO debts (entity, detail, principal_cents, interest_rate, term_months)
-     VALUES (@entity, @detail, @principalCents, @interestRate, @termMonths)`
+    `INSERT INTO debts (entity, detail, principal_cents, interest_rate, term_months, workspace_id)
+     VALUES (@entity, @detail, @principalCents, @interestRate, @termMonths, @workspaceId)`
   );
   const info = stmt.run(debt);
   return db.prepare('SELECT * FROM debts WHERE id = ?').get(info.lastInsertRowid) as Debt;
 }
 
-export function updateDebt(id: number, debt: NewDebt): Debt | undefined {
+export function updateDebt(id: number, workspaceId: number, debt: NewDebt): Debt | undefined {
   db.prepare(
     `UPDATE debts
      SET entity = @entity, detail = @detail, principal_cents = @principalCents,
          interest_rate = @interestRate, term_months = @termMonths
-     WHERE id = @id`
-  ).run({ ...debt, id });
-  return db.prepare('SELECT * FROM debts WHERE id = ?').get(id) as Debt | undefined;
+     WHERE id = @id AND workspace_id = @workspaceId`
+  ).run({ ...debt, id, workspaceId });
+  return db
+    .prepare('SELECT * FROM debts WHERE id = ? AND workspace_id = ?')
+    .get(id, workspaceId) as Debt | undefined;
 }
 
-export function deleteDebt(id: number): void {
-  const unlink = db.transaction((debtId: number) => {
-    db.prepare('UPDATE transactions SET debt_id = NULL WHERE debt_id = ?').run(debtId);
-    db.prepare('DELETE FROM debts WHERE id = ?').run(debtId);
+export function deleteDebt(id: number, workspaceId: number): void {
+  const unlink = db.transaction((debtId: number, ws: number) => {
+    db.prepare('UPDATE transactions SET debt_id = NULL WHERE debt_id = ? AND workspace_id = ?').run(
+      debtId,
+      ws
+    );
+    db.prepare('DELETE FROM debts WHERE id = ? AND workspace_id = ?').run(debtId, ws);
   });
-  unlink(id);
+  unlink(id, workspaceId);
 }
 
-export function listDebts(): Debt[] {
-  return db.prepare('SELECT * FROM debts ORDER BY id ASC').all() as Debt[];
+export function listDebts(workspaceId: number): Debt[] {
+  return db.prepare('SELECT * FROM debts WHERE workspace_id = ? ORDER BY id ASC').all(
+    workspaceId
+  ) as Debt[];
 }
 
-export function getDebtPaidTotal(debtId: number): number {
+export function getDebtPaidTotal(debtId: number, workspaceId: number): number {
   const row = db
     .prepare(
       `SELECT COALESCE(SUM(amount_cents), 0) AS total
        FROM transactions
-       WHERE debt_id = ? AND type = 'expense'`
+       WHERE debt_id = ? AND type = 'expense' AND workspace_id = ?`
     )
-    .get(debtId) as { total: number };
+    .get(debtId, workspaceId) as { total: number };
   return row.total;
 }
 
-export function getDebtPayments(debtId: number): Transaction[] {
+export function getDebtPayments(debtId: number, workspaceId: number): Transaction[] {
   return db
     .prepare(
-      `SELECT * FROM transactions WHERE debt_id = ? AND type = 'expense' ORDER BY date DESC, id DESC`
+      `SELECT * FROM transactions WHERE debt_id = ? AND type = 'expense' AND workspace_id = ? ORDER BY date DESC, id DESC`
     )
-    .all(debtId) as Transaction[];
+    .all(debtId, workspaceId) as Transaction[];
 }
 
 export default db;

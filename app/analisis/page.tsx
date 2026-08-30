@@ -1,13 +1,15 @@
 import { computeInsights } from '@/lib/insights';
 import { monthLabel, currentMonth } from '@/lib/format';
+import { requireWorkspaceId } from '@/lib/session';
 import InsightCard from '@/components/InsightCard';
 import BottomNav from '@/components/BottomNav';
 import { logout } from '../login/actions';
 
 export const dynamic = 'force-dynamic';
 
-export default function AnalisisPage() {
-  const insights = computeInsights();
+export default async function AnalisisPage() {
+  const workspaceId = await requireWorkspaceId();
+  const insights = computeInsights(workspaceId);
 
   return (
     <main className="min-h-screen pb-32">

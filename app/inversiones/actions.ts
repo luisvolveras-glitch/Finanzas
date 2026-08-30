@@ -4,8 +4,9 @@ import { revalidatePath } from 'next/cache';
 import { addInvestment, deleteInvestment, updateInvestment } from '@/lib/db';
 import { resolveInvestmentCategoryId } from '@/lib/investmentCategories';
 import { toCents } from '@/lib/format';
+import { requireWorkspaceId } from '@/lib/session';
 
-function parseForm(formData: FormData) {
+function parseForm(formData: FormData, workspaceId: number) {
   const category = resolveInvestmentCategoryId(String(formData.get('category') || ''));
   const name = String(formData.get('name') || '').trim();
   const amount = Number(formData.get('amount'));
@@ -13,7 +14,7 @@ function parseForm(formData: FormData) {
   const interestRate = rateRaw ? Number(rateRaw) : null;
   const date = String(formData.get('date') || '').slice(0, 10);
 
-  return { category, name, amountCents: toCents(amount), interestRate, date };
+  return { category, name, amountCents: toCents(amount), interestRate, date, workspaceId };
 }
 
 function assertValid(data: ReturnType<typeof parseForm>) {
@@ -32,7 +33,8 @@ function assertValid(data: ReturnType<typeof parseForm>) {
 }
 
 export async function createInvestment(formData: FormData) {
-  const data = parseForm(formData);
+  const workspaceId = await requireWorkspaceId();
+  const data = parseForm(formData, workspaceId);
   assertValid(data);
   addInvestment(data);
   revalidatePath('/inversiones');
@@ -40,15 +42,17 @@ export async function createInvestment(formData: FormData) {
 }
 
 export async function editInvestment(id: number, formData: FormData) {
-  const data = parseForm(formData);
+  const workspaceId = await requireWorkspaceId();
+  const data = parseForm(formData, workspaceId);
   assertValid(data);
-  updateInvestment(id, data);
+  updateInvestment(id, workspaceId, data);
   revalidatePath('/inversiones');
   revalidatePath('/analisis');
 }
 
 export async function removeInvestment(id: number) {
-  deleteInvestment(id);
+  const workspaceId = await requireWorkspaceId();
+  deleteInvestment(id, workspaceId);
   revalidatePath('/inversiones');
   revalidatePath('/analisis');
 }

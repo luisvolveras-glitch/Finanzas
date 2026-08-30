@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkApiToken } from '@/lib/auth';
-import { addTransaction, getTotals, listTransactions } from '@/lib/db';
+import { addTransaction, getAdminWorkspaceId, getTotals, listTransactions } from '@/lib/db';
 import { resolveCategoryId } from '@/lib/categories';
 import { toCents, todayISO } from '@/lib/format';
 
@@ -10,10 +10,20 @@ function unauthorized() {
   return NextResponse.json({ ok: false, error: 'No autorizado' }, { status: 401 });
 }
 
+function noAdminWorkspace() {
+  return NextResponse.json(
+    { ok: false, error: 'Todavía no hay una cuenta admin configurada en la app' },
+    { status: 500 }
+  );
+}
+
 export async function POST(req: NextRequest) {
   if (!checkApiToken(req.headers.get('authorization'))) {
     return unauthorized();
   }
+
+  const workspaceId = getAdminWorkspaceId();
+  if (!workspaceId) return noAdminWorkspace();
 
   let body: Record<string, unknown>;
   try {
@@ -56,9 +66,10 @@ export async function POST(req: NextRequest) {
     category,
     date,
     debtId: null,
+    workspaceId,
   });
 
-  const totals = getTotals();
+  const totals = getTotals(workspaceId);
 
   return NextResponse.json({
     ok: true,
@@ -79,13 +90,16 @@ export async function GET(req: NextRequest) {
     return unauthorized();
   }
 
+  const workspaceId = getAdminWorkspaceId();
+  if (!workspaceId) return noAdminWorkspace();
+
   const { searchParams } = new URL(req.url);
   const month = searchParams.get('month') || undefined;
   const limitParam = searchParams.get('limit');
   const limit = limitParam ? Number(limitParam) : 20;
 
-  const transactions = listTransactions({ month, limit });
-  const totals = getTotals(month);
+  const transactions = listTransactions(workspaceId, { month, limit });
+  const totals = getTotals(workspaceId, month);
 
   return NextResponse.json({
     ok: true,

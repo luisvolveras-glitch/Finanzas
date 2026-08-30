@@ -1,5 +1,6 @@
 import { getBudgetTotal, listBudgetItems } from '@/lib/db';
 import { formatMoney } from '@/lib/format';
+import { requireWorkspaceId } from '@/lib/session';
 import AddBudgetButton from '@/components/AddBudgetButton';
 import BudgetTable from '@/components/BudgetTable';
 import BottomNav from '@/components/BottomNav';
@@ -7,9 +8,10 @@ import { logout } from '../login/actions';
 
 export const dynamic = 'force-dynamic';
 
-export default function PresupuestoPage() {
-  const items = listBudgetItems();
-  const total = getBudgetTotal();
+export default async function PresupuestoPage() {
+  const workspaceId = await requireWorkspaceId();
+  const items = listBudgetItems(workspaceId);
+  const total = getBudgetTotal(workspaceId);
 
   return (
     <main className="min-h-screen pb-32">

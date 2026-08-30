@@ -21,12 +21,12 @@ const DISCRETIONARY_THRESHOLD_PCT = 20;
 const TOP_CATEGORY_WARNING_PCT = 30;
 const MONTH_CHANGE_THRESHOLD_PCT = 15;
 
-export function computeInsights(): Insight[] {
+export function computeInsights(workspaceId: number): Insight[] {
   const insights: Insight[] = [];
   const month = currentMonth();
-  const totals = getTotals(month);
+  const totals = getTotals(workspaceId, month);
   const balance = totals.income_cents - totals.expense_cents;
-  const categoryTotals = getCategoryTotals(month).filter((r) => r.type === 'expense');
+  const categoryTotals = getCategoryTotals(workspaceId, month).filter((r) => r.type === 'expense');
   const totalExpense = totals.expense_cents;
 
   // 1. Tasa de ahorro
@@ -112,7 +112,7 @@ export function computeInsights(): Insight[] {
   }
 
   // 4. Comparación con el mes anterior
-  const monthly = getMonthlySummary(2);
+  const monthly = getMonthlySummary(workspaceId, 2);
   if (monthly.length >= 2) {
     const [curr, prev] = monthly;
     if (prev.expense_cents > 0) {
@@ -136,7 +136,7 @@ export function computeInsights(): Insight[] {
   }
 
   // 5. Inversiones y ahorro
-  const invTotals = getInvestmentTotals();
+  const invTotals = getInvestmentTotals(workspaceId);
   if (invTotals.total_cents === 0) {
     insights.push({
       icon: '🌱',

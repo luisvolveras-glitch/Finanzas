@@ -7,7 +7,9 @@ App personal de ingresos y gastos, con:
 - Formulario para agregar/editar/eliminar movimientos desde la web.
 - API protegida para conectar el atajo de **Shortcuts** de iPhone y registrar ingresos/gastos por voz o con un toque.
 
-La app está protegida con una contraseña simple (una sola persona/hogar la usa).
+La app tiene inicio de sesión con correo y contraseña, y cada cuenta tiene su
+propio espacio de datos privado (o puede compartir el espacio de otra cuenta
+si así lo pide al registrarse). Ver la sección **Usuarios y acceso** más abajo.
 
 ## Stack técnico
 
@@ -22,15 +24,25 @@ cp .env.example .env.local   # y edita las claves
 npm run dev
 ```
 
-Abre `http://localhost:3000`, inicia sesión con el `APP_PASSWORD` que definiste.
+Abre `http://localhost:3000`, inicia sesión con el correo de `ADMIN_EMAIL` y la contraseña de `ADMIN_PASSWORD`/`APP_PASSWORD`.
 
 ## Variables de entorno
 
 | Variable | Para qué sirve |
 |---|---|
-| `APP_PASSWORD` | Contraseña para entrar a la web. |
-| `API_TOKEN` | Token secreto que usará el Atajo de iPhone para poder crear movimientos. |
+| `ADMIN_EMAIL` | Correo de la cuenta administradora inicial. **Obligatoria** — sin ella no se crea ningún usuario y nadie puede entrar. |
+| `ADMIN_PASSWORD` | Contraseña de esa cuenta admin. Si no la defines, se usa `APP_PASSWORD`. |
+| `APP_PASSWORD` | Compatibilidad con versiones anteriores: sirve como contraseña del admin si no defines `ADMIN_PASSWORD`. |
+| `API_TOKEN` | Token secreto que usará el Atajo de iPhone para poder crear movimientos. También firma las sesiones de login — no lo cambies una vez la app esté en uso porque cerraría la sesión de todos. |
 | `DATABASE_PATH` | Ruta del archivo SQLite. En producción debe apuntar a un **disco persistente** (ver despliegue abajo). Si no se define, usa `./data/finanzas.db`. |
+
+## Usuarios y acceso
+
+- La primera vez que arranca la app (sin ningún usuario creado todavía), se crea automáticamente una cuenta **administradora** con el correo de `ADMIN_EMAIL`. Todos los datos que ya existían en la base de datos (si vienes de una versión anterior sin login por usuario) quedan asignados a esa cuenta.
+- Cualquiera puede pedir una cuenta nueva desde **"Solicitar acceso"** en la pantalla de login (`/signup`): pide correo, contraseña, nombres, apellidos, celular y opcionalmente el motivo para usar la app.
+- Toda cuenta nueva queda **pendiente de aprobación** — no puede iniciar sesión hasta que el administrador la apruebe desde `/admin` (ahí ve nombre, correo, celular y el motivo, con botones Aprobar/Rechazar). El admin ve un ícono 👑 junto al botón de cerrar sesión que lleva a esa pantalla.
+- Al registrarse, cada quien puede marcar la casilla **"Quiero compartir cuenta con alguien que ya tiene acceso"** e indicar el correo de esa persona: si se aprueba, verá y editará exactamente los mismos datos que esa cuenta (como una cuenta familiar). Si no marca la casilla, se le crea un espacio 100% propio y privado, separado de todos los demás.
+- El Atajo de iPhone (API con `API_TOKEN`) siempre escribe en el espacio de la cuenta **administradora**.
 
 ## Despliegue (recomendado: Railway)
 
@@ -41,10 +53,13 @@ Como la app usa un archivo SQLite, necesitas un hosting con **disco persistente*
 3. Railway detecta que es un proyecto Node/Next.js automáticamente (build: `npm run build`, start: `npm run start`).
 4. Ve a la pestaña **Volumes** del servicio y crea un volumen montado en `/data`.
 5. En **Variables**, agrega:
-   - `APP_PASSWORD` = una contraseña tuya
+   - `ADMIN_EMAIL` = tu correo (será tu usuario administrador)
+   - `APP_PASSWORD` = una contraseña tuya (o usa `ADMIN_PASSWORD` si prefieres separarla)
    - `API_TOKEN` = un token largo y aleatorio (por ejemplo, generado con `openssl rand -hex 24`)
    - `DATABASE_PATH` = `/data/finanzas.db`
 6. Despliega. Railway te da una URL pública tipo `https://tu-app.up.railway.app`.
+
+> Si ya tenías la app desplegada de antes (con solo `APP_PASSWORD`), solo hace falta **agregar** la variable `ADMIN_EMAIL` con tu correo y redesplegar — tu contraseña actual sigue funcionando como la del admin, y todos tus datos existentes quedan asignados a esa cuenta automáticamente.
 
 **Alternativa: Render.** Mismo procedimiento, pero el disco persistente ("Disks") solo está disponible en planes pagos de Render; en el plan gratuito el archivo SQLite se perdería en cada redeploy.
 

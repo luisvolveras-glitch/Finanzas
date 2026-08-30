@@ -1,5 +1,6 @@
 import { getDebtPaidTotal, getDebtPayments, listDebts } from '@/lib/db';
 import { formatMoney } from '@/lib/format';
+import { requireWorkspaceId } from '@/lib/session';
 import AddDebtButton from '@/components/AddDebtButton';
 import DebtCard from '@/components/DebtCard';
 import BottomNav from '@/components/BottomNav';
@@ -7,11 +8,12 @@ import { logout } from '../login/actions';
 
 export const dynamic = 'force-dynamic';
 
-export default function DeudasPage() {
-  const debts = listDebts();
+export default async function DeudasPage() {
+  const workspaceId = await requireWorkspaceId();
+  const debts = listDebts(workspaceId);
   const rows = debts.map((debt) => {
-    const paidTotal = getDebtPaidTotal(debt.id);
-    const payments = getDebtPayments(debt.id);
+    const paidTotal = getDebtPaidTotal(debt.id, workspaceId);
+    const payments = getDebtPayments(debt.id, workspaceId);
     const remaining = Math.max(debt.principal_cents - paidTotal, 0);
     return { debt, paidTotal, payments, remaining };
   });

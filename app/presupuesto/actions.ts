@@ -3,14 +3,15 @@
 import { revalidatePath } from 'next/cache';
 import { addBudgetItem, deleteBudgetItem, updateBudgetItem } from '@/lib/db';
 import { toCents } from '@/lib/format';
+import { requireWorkspaceId } from '@/lib/session';
 
-function parseForm(formData: FormData) {
+function parseForm(formData: FormData, workspaceId: number) {
   const name = String(formData.get('name') || '').trim();
   const detail = String(formData.get('detail') || '').trim();
   const frequency = String(formData.get('frequency') || '').trim();
   const amount = Number(formData.get('amount'));
 
-  return { name, detail, frequency, amountCents: toCents(amount) };
+  return { name, detail, frequency, amountCents: toCents(amount), workspaceId };
 }
 
 function assertValid(data: ReturnType<typeof parseForm>) {
@@ -23,7 +24,8 @@ function assertValid(data: ReturnType<typeof parseForm>) {
 }
 
 export async function createBudgetItem(formData: FormData) {
-  const data = parseForm(formData);
+  const workspaceId = await requireWorkspaceId();
+  const data = parseForm(formData, workspaceId);
   assertValid(data);
   addBudgetItem(data);
   revalidatePath('/presupuesto');
@@ -31,15 +33,17 @@ export async function createBudgetItem(formData: FormData) {
 }
 
 export async function editBudgetItem(id: number, formData: FormData) {
-  const data = parseForm(formData);
+  const workspaceId = await requireWorkspaceId();
+  const data = parseForm(formData, workspaceId);
   assertValid(data);
-  updateBudgetItem(id, data);
+  updateBudgetItem(id, workspaceId, data);
   revalidatePath('/presupuesto');
   revalidatePath('/analisis');
 }
 
 export async function removeBudgetItem(id: number) {
-  deleteBudgetItem(id);
+  const workspaceId = await requireWorkspaceId();
+  deleteBudgetItem(id, workspaceId);
   revalidatePath('/presupuesto');
   revalidatePath('/analisis');
 }

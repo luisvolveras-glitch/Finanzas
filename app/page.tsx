@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import {
   getAvailableMonths,
   getCategoryTotals,
@@ -7,6 +8,7 @@ import {
   listTransactions,
 } from '@/lib/db';
 import { currentMonth, formatMoney } from '@/lib/format';
+import { getCurrentUser } from '@/lib/session';
 import MonthSelector from '@/components/MonthSelector';
 import CategoryBars from '@/components/CategoryBars';
 import TransactionsList from '@/components/TransactionsList';
@@ -24,14 +26,16 @@ export default async function Home({
   searchParams: Promise<{ month?: string }>;
 }) {
   const params = await searchParams;
+  const user = await getCurrentUser();
+  const workspaceId = user!.workspace_id;
   const month = params.month || currentMonth();
-  const months = getAvailableMonths();
-  const totals = getTotals(month);
+  const months = getAvailableMonths(workspaceId);
+  const totals = getTotals(workspaceId, month);
   const balance = totals.income_cents - totals.expense_cents;
-  const transactions = listTransactions({ month, limit: 100 });
-  const categoryTotals = getCategoryTotals(month);
-  const monthlySummary = getMonthlySummary(12);
-  const debtOptions = listDebts().map((d) => ({
+  const transactions = listTransactions(workspaceId, { month, limit: 100 });
+  const categoryTotals = getCategoryTotals(workspaceId, month);
+  const monthlySummary = getMonthlySummary(workspaceId, 12);
+  const debtOptions = listDebts(workspaceId).map((d) => ({
     id: d.id,
     label: d.detail ? `${d.entity} - ${d.detail}` : d.entity,
   }));
@@ -43,6 +47,11 @@ export default async function Home({
           <h1 className="text-lg font-semibold text-ink">Mis Finanzas</h1>
           <div className="flex items-center gap-2">
             <MonthSelector month={month} months={months} />
+            {user!.is_admin === 1 && (
+              <Link href="/admin" aria-label="Solicitudes de acceso" className="text-lg">
+                👑
+              </Link>
+            )}
             <form action={logout}>
               <button className="text-muted text-lg" aria-label="Cerrar sesión">
                 ⏻

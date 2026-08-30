@@ -1,5 +1,6 @@
 import { getInvestmentCategoryTotals, getInvestmentTotals, listInvestments } from '@/lib/db';
 import { formatMoney } from '@/lib/format';
+import { requireWorkspaceId } from '@/lib/session';
 import AddInvestmentButton from '@/components/AddInvestmentButton';
 import InvestmentsList from '@/components/InvestmentsList';
 import InvestmentCategoryTable from '@/components/InvestmentCategoryTable';
@@ -8,10 +9,11 @@ import { logout } from '../login/actions';
 
 export const dynamic = 'force-dynamic';
 
-export default function InversionesPage() {
-  const investments = listInvestments();
-  const totals = getInvestmentTotals();
-  const categoryTotals = getInvestmentCategoryTotals();
+export default async function InversionesPage() {
+  const workspaceId = await requireWorkspaceId();
+  const investments = listInvestments(workspaceId);
+  const totals = getInvestmentTotals(workspaceId);
+  const categoryTotals = getInvestmentCategoryTotals(workspaceId);
 
   return (
     <main className="min-h-screen pb-32">
