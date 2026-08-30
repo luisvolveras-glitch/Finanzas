@@ -17,7 +17,7 @@ export default function MonthlySummaryTable({ rows }: { rows: MonthlySummaryRow[
               <th className="pb-2 font-medium text-right">Balance</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-border">
             {rows.map((r) => {
               const balance = r.income_cents - r.expense_cents;
               return (

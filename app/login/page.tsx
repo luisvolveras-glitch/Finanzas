@@ -11,7 +11,7 @@ export default async function LoginPage({
       <form action={login} className="w-full max-w-sm bg-card rounded-xl2 shadow-soft p-8 space-y-4">
         <input type="hidden" name="next" value={params?.next || '/'} />
         <div className="text-center space-y-1">
-          <div className="text-3xl">💜</div>
+          <div className="text-3xl">💙</div>
           <h1 className="text-xl font-semibold text-ink">Mis Finanzas</h1>
           <p className="text-sm text-muted">Ingresa tu contraseña para continuar</p>
         </div>
@@ -24,7 +24,7 @@ export default async function LoginPage({
           placeholder="Contraseña"
           required
           autoFocus
-          className="w-full rounded-xl border border-gray-200 px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+          className="w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
         />
         <button
           type="submit"

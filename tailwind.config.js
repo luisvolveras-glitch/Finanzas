@@ -7,21 +7,22 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        bg: '#F3F1FB',
+        bg: '#F2F5F8',
         card: '#FFFFFF',
-        ink: '#171522',
-        muted: '#8B87A3',
-        accent: '#8C7CF0',
-        accentDark: '#6E5DE0',
+        ink: '#0B1F3B',
+        muted: '#123A63',
+        accent: '#2F5D8C',
+        accentDark: '#123A63',
+        border: '#C9D6E5',
         income: '#2FBE8F',
         expense: '#F0473E',
-        pillDark: '#211F2E',
+        pillDark: '#0B1F3B',
       },
       borderRadius: {
         xl2: '1.5rem',
       },
       boxShadow: {
-        soft: '0 8px 30px rgba(23, 21, 34, 0.06)',
+        soft: '0 8px 30px rgba(11, 31, 59, 0.08)',
       },
     },
   },

@@ -14,7 +14,7 @@ export default function TransactionsList({ transactions }: { transactions: Trans
   }
 
   return (
-    <div className="bg-card rounded-xl2 shadow-soft divide-y divide-gray-100">
+    <div className="bg-card rounded-xl2 shadow-soft divide-y divide-border">
       {transactions.map((tx) => {
         const cat = getCategory(tx.category);
         const isIncome = tx.type === 'income';

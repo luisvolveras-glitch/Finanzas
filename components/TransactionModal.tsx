@@ -98,7 +98,7 @@ export default function TransactionModal({
                   required
                   defaultValue={initial?.amount}
                   placeholder="0.00"
-                  className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-3 text-lg font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-lg font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
 
@@ -110,7 +110,7 @@ export default function TransactionModal({
                   required
                   defaultValue={initial?.detail}
                   placeholder="¿En qué fue?"
-                  className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
 
@@ -119,7 +119,7 @@ export default function TransactionModal({
                 <select
                   name="category"
                   defaultValue={initial?.category}
-                  className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                 >
                   {categories.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -136,7 +136,7 @@ export default function TransactionModal({
                   type="date"
                   required
                   defaultValue={initial?.date ?? todayISO()}
-                  className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
 

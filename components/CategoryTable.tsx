@@ -17,7 +17,7 @@ export default function CategoryTable({ rows }: { rows: CategoryTotalRow[] }) {
               <th className="pb-2 font-medium text-right">Total</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-border">
             {rows.map((r) => {
               const cat = getCategory(r.category);
               const isIncome = r.type === 'income';

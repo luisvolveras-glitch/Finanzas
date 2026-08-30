@@ -26,7 +26,7 @@ export default function CategoryBars({ rows }: { rows: CategoryTotalRow[] }) {
             <div key={r.category} className="flex flex-col items-center justify-end h-full min-w-[64px]">
               <div className="flex-1 flex items-end w-full">
                 <div
-                  className={`w-full rounded-2xl ${i === 0 ? 'bg-accent' : 'bg-bg'}`}
+                  className={`w-full rounded-2xl ${i === 0 ? 'bg-accent' : 'bg-border'}`}
                   style={{ height: `${heightPct}%` }}
                 />
               </div>
