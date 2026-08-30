@@ -8,6 +8,21 @@ export function formatMoney(cents: number): string {
   return `${sign}$${formatted}`;
 }
 
+export function formatUSD(cents: number): string {
+  const value = cents / 100;
+  const sign = value < 0 ? '-' : '';
+  const abs = Math.abs(value);
+  const formatted = abs.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return `${sign}US$${formatted}`;
+}
+
+export function formatByCurrency(cents: number, currency: 'COP' | 'USD'): string {
+  return currency === 'USD' ? formatUSD(cents) : formatMoney(cents);
+}
+
 export function toCents(amount: number): number {
   return Math.round(amount * 100);
 }

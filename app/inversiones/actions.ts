@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { addInvestment, deleteInvestment, updateInvestment } from '@/lib/db';
+import { addInvestment, deleteInvestment, updateInvestment, type Currency } from '@/lib/db';
 import { resolveInvestmentCategoryId } from '@/lib/investmentCategories';
 import { toCents } from '@/lib/format';
 import { requireWorkspaceId } from '@/lib/session';
@@ -13,8 +13,18 @@ function parseForm(formData: FormData, workspaceId: number) {
   const rateRaw = String(formData.get('interestRate') || '').trim();
   const interestRate = rateRaw ? Number(rateRaw) : null;
   const date = String(formData.get('date') || '').slice(0, 10);
+  const currencyRaw = String(formData.get('currency') || 'COP');
+  const currency: Currency = currencyRaw === 'USD' ? 'USD' : 'COP';
 
-  return { category, name, amountCents: toCents(amount), interestRate, date, workspaceId };
+  return {
+    category,
+    name,
+    amountCents: toCents(amount),
+    interestRate,
+    date,
+    workspaceId,
+    currency,
+  };
 }
 
 function assertValid(data: ReturnType<typeof parseForm>) {

@@ -12,6 +12,7 @@ export interface EditableInvestment {
   amount: number;
   interestRate: number | null;
   date: string;
+  currency: 'COP' | 'USD';
 }
 
 export default function InvestmentModal({
@@ -22,6 +23,7 @@ export default function InvestmentModal({
   initial?: EditableInvestment;
 }) {
   const [open, setOpen] = useState(false);
+  const [currency, setCurrency] = useState<'COP' | 'USD'>(initial?.currency ?? 'COP');
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -90,7 +92,30 @@ export default function InvestmentModal({
               </div>
 
               <div>
-                <label className="text-xs font-medium text-muted">Monto</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-muted">Monto</label>
+                  <div className="flex rounded-full bg-bg p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setCurrency('COP')}
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium transition ${
+                        currency === 'COP' ? 'bg-accent text-white' : 'text-muted'
+                      }`}
+                    >
+                      COP
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCurrency('USD')}
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium transition ${
+                        currency === 'USD' ? 'bg-accent text-white' : 'text-muted'
+                      }`}
+                    >
+                      USD
+                    </button>
+                  </div>
+                </div>
+                <input type="hidden" name="currency" value={currency} />
                 <input
                   name="amount"
                   type="number"

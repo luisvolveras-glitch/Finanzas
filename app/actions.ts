@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { addTransaction, deleteTransaction, updateTransaction } from '@/lib/db';
+import { addTransaction, deleteTransaction, updateTransaction, type Currency } from '@/lib/db';
 import { resolveCategoryId, type TxType } from '@/lib/categories';
 import { toCents } from '@/lib/format';
 import { requireWorkspaceId } from '@/lib/session';
@@ -13,10 +13,15 @@ function parseForm(formData: FormData, workspaceId: number) {
   const categoryInput = String(formData.get('category') || '');
   const date = String(formData.get('date') || '').slice(0, 10);
   const category = resolveCategoryId(type, categoryInput);
+  const currencyRaw = String(formData.get('currency') || 'COP');
+  const currency: Currency = currencyRaw === 'USD' ? 'USD' : 'COP';
+  // Las deudas y el presupuesto son montos en pesos, así que un movimiento en
+  // dólares nunca puede quedar vinculado a ellos (mezclaría monedas al sumar).
   const debtIdRaw = String(formData.get('debtId') || '').trim();
-  const debtId = type === 'expense' && debtIdRaw ? Number(debtIdRaw) : null;
+  const debtId = type === 'expense' && currency === 'COP' && debtIdRaw ? Number(debtIdRaw) : null;
   const budgetItemIdRaw = String(formData.get('budgetItemId') || '').trim();
-  const budgetItemId = type === 'expense' && budgetItemIdRaw ? Number(budgetItemIdRaw) : null;
+  const budgetItemId =
+    type === 'expense' && currency === 'COP' && budgetItemIdRaw ? Number(budgetItemIdRaw) : null;
 
   return {
     type,
@@ -27,6 +32,7 @@ function parseForm(formData: FormData, workspaceId: number) {
     debtId,
     budgetItemId,
     workspaceId,
+    currency,
   };
 }
 

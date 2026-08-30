@@ -1,6 +1,6 @@
 import { removeInvestment } from '@/app/inversiones/actions';
 import { getInvestmentCategory } from '@/lib/investmentCategories';
-import { formatMoney } from '@/lib/format';
+import { formatByCurrency } from '@/lib/format';
 import type { Investment } from '@/lib/db';
 import EditInvestmentButton from './EditInvestmentButton';
 
@@ -29,7 +29,9 @@ export default function InvestmentsList({ investments }: { investments: Investme
                 {inv.interest_rate !== null ? ` · ${inv.interest_rate.toFixed(2)}% anual` : ''}
               </p>
             </div>
-            <p className="font-semibold text-accent">{formatMoney(inv.amount_cents)}</p>
+            <p className="font-semibold text-accent">
+              {formatByCurrency(inv.amount_cents, inv.currency)}
+            </p>
             <div className="flex items-center gap-1">
               <EditInvestmentButton
                 investment={{
@@ -39,6 +41,7 @@ export default function InvestmentsList({ investments }: { investments: Investme
                   amount: inv.amount_cents / 100,
                   interestRate: inv.interest_rate,
                   date: inv.date,
+                  currency: inv.currency,
                 }}
               />
               <form action={removeInvestment.bind(null, inv.id)}>

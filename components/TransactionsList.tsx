@@ -1,6 +1,6 @@
 import { removeTransaction } from '@/app/actions';
 import { getCategory } from '@/lib/categories';
-import { formatMoney } from '@/lib/format';
+import { formatByCurrency } from '@/lib/format';
 import type { Transaction } from '@/lib/db';
 import type { BudgetItemOption, DebtOption } from './TransactionModal';
 import EditButton from './EditButton';
@@ -51,7 +51,7 @@ export default function TransactionsList({
             </div>
             <p className={`font-semibold ${isIncome ? 'text-income' : 'text-expense'}`}>
               {isIncome ? '+' : '-'}
-              {formatMoney(tx.amount_cents)}
+              {formatByCurrency(tx.amount_cents, tx.currency)}
             </p>
             <div className="flex items-center gap-1">
               <EditButton
@@ -64,6 +64,7 @@ export default function TransactionsList({
                   date: tx.date,
                   debtId: tx.debt_id,
                   budgetItemId: tx.budget_item_id,
+                  currency: tx.currency,
                 }}
                 debts={debts}
                 budgetItems={budgetItems}

@@ -14,6 +14,7 @@ export interface EditableTransaction {
   date: string;
   debtId: number | null;
   budgetItemId: number | null;
+  currency: 'COP' | 'USD';
 }
 
 export interface DebtOption {
@@ -46,6 +47,7 @@ export default function TransactionModal({
   const [budgetItemId, setBudgetItemId] = useState(
     initial?.budgetItemId ? String(initial.budgetItemId) : ''
   );
+  const [currency, setCurrency] = useState<'COP' | 'USD'>(initial?.currency ?? 'COP');
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -56,6 +58,16 @@ export default function TransactionModal({
     setType(nextType);
     setCategory(categoriesByType(nextType)[0].id);
     if (nextType === 'income') {
+      setDebtId('');
+      setBudgetItemId('');
+    }
+  }
+
+  function selectCurrency(nextCurrency: 'COP' | 'USD') {
+    setCurrency(nextCurrency);
+    if (nextCurrency === 'USD') {
+      // Las deudas y el presupuesto son en pesos, no se pueden vincular a un
+      // movimiento en dólares.
       setDebtId('');
       setBudgetItemId('');
     }
@@ -122,7 +134,30 @@ export default function TransactionModal({
               <input type="hidden" name="type" value={type} />
 
               <div>
-                <label className="text-xs font-medium text-muted">Monto</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-muted">Monto</label>
+                  <div className="flex rounded-full bg-bg p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => selectCurrency('COP')}
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium transition ${
+                        currency === 'COP' ? 'bg-accent text-white' : 'text-muted'
+                      }`}
+                    >
+                      COP
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => selectCurrency('USD')}
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium transition ${
+                        currency === 'USD' ? 'bg-accent text-white' : 'text-muted'
+                      }`}
+                    >
+                      USD
+                    </button>
+                  </div>
+                </div>
+                <input type="hidden" name="currency" value={currency} />
                 <input
                   name="amount"
                   type="number"
@@ -169,7 +204,7 @@ export default function TransactionModal({
                 />
               </div>
 
-              {type === 'expense' && debts.length > 0 && (
+              {type === 'expense' && currency === 'COP' && debts.length > 0 && (
                 <div>
                   <label className="text-xs font-medium text-muted">
                     ¿Es un pago de deuda? (opcional)
@@ -190,7 +225,7 @@ export default function TransactionModal({
                 </div>
               )}
 
-              {type === 'expense' && budgetItems.length > 0 && (
+              {type === 'expense' && currency === 'COP' && budgetItems.length > 0 && (
                 <div>
                   <label className="text-xs font-medium text-muted">
                     ¿Es un pago de presupuesto? (opcional)

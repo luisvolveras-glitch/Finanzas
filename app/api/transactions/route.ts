@@ -68,6 +68,7 @@ export async function POST(req: NextRequest) {
     debtId: null,
     budgetItemId: null,
     workspaceId,
+    currency: 'COP',
   });
 
   const totals = getTotals(workspaceId);

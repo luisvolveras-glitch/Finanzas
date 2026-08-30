@@ -102,7 +102,9 @@ function migrateColumns(conn: Database.Database) {
   addColumnIfMissing(conn, 'transactions', 'debt_id', 'INTEGER');
   addColumnIfMissing(conn, 'transactions', 'budget_item_id', 'INTEGER');
   addColumnIfMissing(conn, 'transactions', 'workspace_id', 'INTEGER');
+  addColumnIfMissing(conn, 'transactions', 'currency', "TEXT NOT NULL DEFAULT 'COP'");
   addColumnIfMissing(conn, 'investments', 'workspace_id', 'INTEGER');
+  addColumnIfMissing(conn, 'investments', 'currency', "TEXT NOT NULL DEFAULT 'COP'");
   addColumnIfMissing(conn, 'budget_items', 'workspace_id', 'INTEGER');
   addColumnIfMissing(conn, 'debts', 'workspace_id', 'INTEGER');
   addColumnIfMissing(conn, 'users', 'is_blocked', 'INTEGER NOT NULL DEFAULT 0');
@@ -319,6 +321,8 @@ export function getAdminWorkspaceId(): number | undefined {
   return row?.workspace_id;
 }
 
+export type Currency = 'COP' | 'USD';
+
 export interface Transaction {
   id: number;
   type: TxType;
@@ -330,6 +334,7 @@ export interface Transaction {
   debt_id: number | null;
   budget_item_id: number | null;
   workspace_id: number;
+  currency: Currency;
 }
 
 export interface NewTransaction {
@@ -341,12 +346,13 @@ export interface NewTransaction {
   debtId: number | null;
   budgetItemId: number | null;
   workspaceId: number;
+  currency: Currency;
 }
 
 export function addTransaction(tx: NewTransaction): Transaction {
   const stmt = db.prepare(
-    `INSERT INTO transactions (type, amount_cents, detail, category, date, debt_id, budget_item_id, workspace_id)
-     VALUES (@type, @amountCents, @detail, @category, @date, @debtId, @budgetItemId, @workspaceId)`
+    `INSERT INTO transactions (type, amount_cents, detail, category, date, debt_id, budget_item_id, workspace_id, currency)
+     VALUES (@type, @amountCents, @detail, @category, @date, @debtId, @budgetItemId, @workspaceId, @currency)`
   );
   const info = stmt.run(tx);
   return db
@@ -362,7 +368,7 @@ export function updateTransaction(
   db.prepare(
     `UPDATE transactions
      SET type = @type, amount_cents = @amountCents, detail = @detail, category = @category,
-         date = @date, debt_id = @debtId, budget_item_id = @budgetItemId
+         date = @date, debt_id = @debtId, budget_item_id = @budgetItemId, currency = @currency
      WHERE id = @id AND workspace_id = @workspaceId`
   ).run({ ...tx, id, workspaceId });
   return db
@@ -414,8 +420,23 @@ export interface PeriodTotals {
 
 export function getTotals(workspaceId: number, month?: string): PeriodTotals {
   const where = month
-    ? "WHERE workspace_id = @workspaceId AND strftime('%Y-%m', date) = @month"
-    : 'WHERE workspace_id = @workspaceId';
+    ? "WHERE workspace_id = @workspaceId AND currency = 'COP' AND strftime('%Y-%m', date) = @month"
+    : "WHERE workspace_id = @workspaceId AND currency = 'COP'";
+  const row = db
+    .prepare(
+      `SELECT
+         COALESCE(SUM(CASE WHEN type = 'income' THEN amount_cents ELSE 0 END), 0) AS income_cents,
+         COALESCE(SUM(CASE WHEN type = 'expense' THEN amount_cents ELSE 0 END), 0) AS expense_cents
+       FROM transactions ${where}`
+    )
+    .get(month ? { workspaceId, month } : { workspaceId }) as PeriodTotals;
+  return row;
+}
+
+export function getTotalsUSD(workspaceId: number, month?: string): PeriodTotals {
+  const where = month
+    ? "WHERE workspace_id = @workspaceId AND currency = 'USD' AND strftime('%Y-%m', date) = @month"
+    : "WHERE workspace_id = @workspaceId AND currency = 'USD'";
   const row = db
     .prepare(
       `SELECT
@@ -441,7 +462,7 @@ export function getMonthlySummary(workspaceId: number, limit = 12): MonthlySumma
          COALESCE(SUM(CASE WHEN type = 'income' THEN amount_cents ELSE 0 END), 0) AS income_cents,
          COALESCE(SUM(CASE WHEN type = 'expense' THEN amount_cents ELSE 0 END), 0) AS expense_cents
        FROM transactions
-       WHERE workspace_id = ?
+       WHERE workspace_id = ? AND currency = 'COP'
        GROUP BY month
        ORDER BY month DESC
        LIMIT ?`
@@ -457,8 +478,8 @@ export interface CategoryTotalRow {
 
 export function getCategoryTotals(workspaceId: number, month?: string): CategoryTotalRow[] {
   const where = month
-    ? "WHERE workspace_id = @workspaceId AND strftime('%Y-%m', date) = @month"
-    : 'WHERE workspace_id = @workspaceId';
+    ? "WHERE workspace_id = @workspaceId AND currency = 'COP' AND strftime('%Y-%m', date) = @month"
+    : "WHERE workspace_id = @workspaceId AND currency = 'COP'";
   return db
     .prepare(
       `SELECT category, type, SUM(amount_cents) AS total_cents
@@ -488,6 +509,7 @@ export interface Investment {
   date: string;
   created_at: string;
   workspace_id: number;
+  currency: Currency;
 }
 
 export interface NewInvestment {
@@ -497,12 +519,13 @@ export interface NewInvestment {
   interestRate: number | null;
   date: string;
   workspaceId: number;
+  currency: Currency;
 }
 
 export function addInvestment(inv: NewInvestment): Investment {
   const stmt = db.prepare(
-    `INSERT INTO investments (category, name, amount_cents, interest_rate, date, workspace_id)
-     VALUES (@category, @name, @amountCents, @interestRate, @date, @workspaceId)`
+    `INSERT INTO investments (category, name, amount_cents, interest_rate, date, workspace_id, currency)
+     VALUES (@category, @name, @amountCents, @interestRate, @date, @workspaceId, @currency)`
   );
   const info = stmt.run(inv);
   return db
@@ -518,7 +541,7 @@ export function updateInvestment(
   db.prepare(
     `UPDATE investments
      SET category = @category, name = @name, amount_cents = @amountCents,
-         interest_rate = @interestRate, date = @date
+         interest_rate = @interestRate, date = @date, currency = @currency
      WHERE id = @id AND workspace_id = @workspaceId`
   ).run({ ...inv, id, workspaceId });
   return db
@@ -551,7 +574,23 @@ export function getInvestmentTotals(workspaceId: number): InvestmentTotals {
            ELSE NULL
          END AS weighted_rate
        FROM investments
-       WHERE workspace_id = ?`
+       WHERE workspace_id = ? AND currency = 'COP'`
+    )
+    .get(workspaceId) as InvestmentTotals;
+  return row;
+}
+
+export function getInvestmentTotalsUSD(workspaceId: number): InvestmentTotals {
+  const row = db
+    .prepare(
+      `SELECT
+         COALESCE(SUM(amount_cents), 0) AS total_cents,
+         CASE WHEN SUM(amount_cents) > 0
+           THEN SUM(amount_cents * COALESCE(interest_rate, 0)) * 1.0 / SUM(amount_cents)
+           ELSE NULL
+         END AS weighted_rate
+       FROM investments
+       WHERE workspace_id = ? AND currency = 'USD'`
     )
     .get(workspaceId) as InvestmentTotals;
   return row;
@@ -568,7 +607,7 @@ export function getInvestmentCategoryTotals(workspaceId: number): InvestmentCate
     .prepare(
       `SELECT category, SUM(amount_cents) AS total_cents, COUNT(*) AS count
        FROM investments
-       WHERE workspace_id = ?
+       WHERE workspace_id = ? AND currency = 'COP'
        GROUP BY category
        ORDER BY total_cents DESC`
     )

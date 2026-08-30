@@ -3,11 +3,13 @@ import {
   getCategoryTotals,
   getMonthlySummary,
   getTotals,
+  getTotalsUSD,
   listBudgetItems,
   listDebts,
   listTransactions,
 } from '@/lib/db';
-import { currentMonth, formatMoney } from '@/lib/format';
+import { getUsdToCopRate } from '@/lib/exchangeRate';
+import { currentMonth, formatMoney, formatUSD } from '@/lib/format';
 import { getCurrentUser } from '@/lib/session';
 import MonthSelector from '@/components/MonthSelector';
 import CategoryBars from '@/components/CategoryBars';
@@ -33,6 +35,9 @@ export default async function Home({
   const months = getAvailableMonths(workspaceId);
   const totals = getTotals(workspaceId, month);
   const balance = totals.income_cents - totals.expense_cents;
+  const totalsUSD = getTotalsUSD(workspaceId, month);
+  const hasUSD = totalsUSD.income_cents > 0 || totalsUSD.expense_cents > 0;
+  const usdRate = hasUSD ? await getUsdToCopRate() : null;
   const transactions = listTransactions(workspaceId, { month, limit: 100 });
   const categoryTotals = getCategoryTotals(workspaceId, month);
   const monthlySummary = getMonthlySummary(workspaceId, 12);
@@ -76,6 +81,28 @@ export default async function Home({
             </span>
           </div>
         </section>
+
+        {hasUSD && (
+          <section className="bg-card rounded-xl2 shadow-soft p-6">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted">
+              <span className="h-2 w-2 rounded-full bg-accent" />
+              Movimientos en dólares (aparte del balance en pesos)
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span className="rounded-full bg-pillDark px-3 py-1.5 text-sm font-medium text-white">
+                − {formatUSD(totalsUSD.expense_cents)}
+              </span>
+              <span className="rounded-full bg-income/10 px-3 py-1.5 text-sm font-medium text-income">
+                + {formatUSD(totalsUSD.income_cents)}
+              </span>
+            </div>
+            {usdRate && (
+              <p className="mt-3 text-xs text-muted">
+                Tasa de referencia: 1 USD ≈ {formatMoney(Math.round(usdRate * 100))}
+              </p>
+            )}
+          </section>
+        )}
 
         <CategoryBars rows={categoryTotals} />
 
