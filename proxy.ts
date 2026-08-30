@@ -14,7 +14,7 @@ export function proxy(req: NextRequest) {
   const userId = verifySessionToken(cookie);
   const user = userId !== null ? getUserById(userId) : undefined;
 
-  if (!user || user.status !== 'approved') {
+  if (!user || user.status !== 'approved' || user.is_blocked) {
     const url = req.nextUrl.clone();
     url.pathname = '/login';
     url.searchParams.set('next', pathname);

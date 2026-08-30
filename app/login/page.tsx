@@ -6,6 +6,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   credenciales: 'Correo o contraseña incorrectos',
   pendiente: 'Tu cuenta todavía está pendiente de aprobación',
   rechazada: 'Tu solicitud de acceso fue rechazada',
+  bloqueada: 'Tu cuenta está bloqueada. Contacta al administrador.',
 };
 
 export default async function LoginPage({

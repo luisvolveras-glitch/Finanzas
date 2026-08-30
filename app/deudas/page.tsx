@@ -1,15 +1,17 @@
 import { getDebtPaidTotal, getDebtPayments, listDebts } from '@/lib/db';
 import { formatMoney } from '@/lib/format';
-import { requireWorkspaceId } from '@/lib/session';
+import { getCurrentUser } from '@/lib/session';
 import AddDebtButton from '@/components/AddDebtButton';
 import DebtCard from '@/components/DebtCard';
 import BottomNav from '@/components/BottomNav';
+import AccountHeaderLink from '@/components/AccountHeaderLink';
 import { logout } from '../login/actions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DeudasPage() {
-  const workspaceId = await requireWorkspaceId();
+  const user = await getCurrentUser();
+  const workspaceId = user!.workspace_id;
   const debts = listDebts(workspaceId);
   const rows = debts.map((debt) => {
     const paidTotal = getDebtPaidTotal(debt.id, workspaceId);
@@ -24,11 +26,14 @@ export default async function DeudasPage() {
       <div className="mx-auto max-w-md px-4 pt-8 space-y-5">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold text-ink">Deudas</h1>
-          <form action={logout}>
-            <button className="text-muted text-lg" aria-label="Cerrar sesión">
-              ⏻
-            </button>
-          </form>
+          <div className="flex items-center gap-3">
+            <AccountHeaderLink isAdmin={user!.is_admin === 1} />
+            <form action={logout}>
+              <button className="text-muted text-lg" aria-label="Cerrar sesión">
+                ⏻
+              </button>
+            </form>
+          </div>
         </div>
 
         <section className="bg-card rounded-xl2 shadow-soft p-6">

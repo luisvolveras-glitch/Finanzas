@@ -104,6 +104,7 @@ function migrateColumns(conn: Database.Database) {
   addColumnIfMissing(conn, 'investments', 'workspace_id', 'INTEGER');
   addColumnIfMissing(conn, 'budget_items', 'workspace_id', 'INTEGER');
   addColumnIfMissing(conn, 'debts', 'workspace_id', 'INTEGER');
+  addColumnIfMissing(conn, 'users', 'is_blocked', 'INTEGER NOT NULL DEFAULT 0');
 }
 
 function bootstrapAdmin(conn: Database.Database) {
@@ -240,6 +241,7 @@ export interface User {
   reason: string;
   status: UserStatus;
   is_admin: number;
+  is_blocked: number;
   workspace_id: number;
   created_at: string;
 }
@@ -279,10 +281,8 @@ export function listPendingUsers(): User[] {
     .all() as User[];
 }
 
-export function listApprovedUsers(): User[] {
-  return db
-    .prepare("SELECT * FROM users WHERE status = 'approved' ORDER BY created_at ASC")
-    .all() as User[];
+export function listAllUsers(): User[] {
+  return db.prepare('SELECT * FROM users ORDER BY created_at ASC').all() as User[];
 }
 
 export function approveUser(id: number): void {
@@ -291,6 +291,18 @@ export function approveUser(id: number): void {
 
 export function rejectUser(id: number): void {
   db.prepare("UPDATE users SET status = 'rejected' WHERE id = ?").run(id);
+}
+
+export function blockUser(id: number): void {
+  db.prepare('UPDATE users SET is_blocked = 1 WHERE id = ?').run(id);
+}
+
+export function unblockUser(id: number): void {
+  db.prepare('UPDATE users SET is_blocked = 0 WHERE id = ?').run(id);
+}
+
+export function setUserPasswordHash(id: number, passwordHash: string): void {
+  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(passwordHash, id);
 }
 
 export function getAdminWorkspaceId(): number | undefined {

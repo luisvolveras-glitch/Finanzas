@@ -25,6 +25,10 @@ export async function login(formData: FormData) {
     redirect(`/login?error=rechazada&next=${encodeURIComponent(next)}`);
   }
 
+  if (user.is_blocked) {
+    redirect(`/login?error=bloqueada&next=${encodeURIComponent(next)}`);
+  }
+
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, createSessionToken(user.id), {
     httpOnly: true,

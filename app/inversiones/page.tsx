@@ -1,16 +1,18 @@
 import { getInvestmentCategoryTotals, getInvestmentTotals, listInvestments } from '@/lib/db';
 import { formatMoney } from '@/lib/format';
-import { requireWorkspaceId } from '@/lib/session';
+import { getCurrentUser } from '@/lib/session';
 import AddInvestmentButton from '@/components/AddInvestmentButton';
 import InvestmentsList from '@/components/InvestmentsList';
 import InvestmentCategoryTable from '@/components/InvestmentCategoryTable';
 import BottomNav from '@/components/BottomNav';
+import AccountHeaderLink from '@/components/AccountHeaderLink';
 import { logout } from '../login/actions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function InversionesPage() {
-  const workspaceId = await requireWorkspaceId();
+  const user = await getCurrentUser();
+  const workspaceId = user!.workspace_id;
   const investments = listInvestments(workspaceId);
   const totals = getInvestmentTotals(workspaceId);
   const categoryTotals = getInvestmentCategoryTotals(workspaceId);
@@ -20,11 +22,14 @@ export default async function InversionesPage() {
       <div className="mx-auto max-w-md px-4 pt-8 space-y-5">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold text-ink">Inversiones</h1>
-          <form action={logout}>
-            <button className="text-muted text-lg" aria-label="Cerrar sesión">
-              ⏻
-            </button>
-          </form>
+          <div className="flex items-center gap-3">
+            <AccountHeaderLink isAdmin={user!.is_admin === 1} />
+            <form action={logout}>
+              <button className="text-muted text-lg" aria-label="Cerrar sesión">
+                ⏻
+              </button>
+            </form>
+          </div>
         </div>
 
         <section className="bg-card rounded-xl2 shadow-soft p-6">

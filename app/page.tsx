@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import {
   getAvailableMonths,
   getCategoryTotals,
@@ -16,6 +15,7 @@ import MonthlySummaryTable from '@/components/MonthlySummaryTable';
 import CategoryTable from '@/components/CategoryTable';
 import AddButton from '@/components/AddButton';
 import BottomNav from '@/components/BottomNav';
+import AccountHeaderLink from '@/components/AccountHeaderLink';
 import { logout } from './login/actions';
 
 export const dynamic = 'force-dynamic';
@@ -47,11 +47,7 @@ export default async function Home({
           <h1 className="text-lg font-semibold text-ink">Mis Finanzas</h1>
           <div className="flex items-center gap-2">
             <MonthSelector month={month} months={months} />
-            {user!.is_admin === 1 && (
-              <Link href="/admin" aria-label="Solicitudes de acceso" className="text-lg">
-                👑
-              </Link>
-            )}
+            <AccountHeaderLink isAdmin={user!.is_admin === 1} />
             <form action={logout}>
               <button className="text-muted text-lg" aria-label="Cerrar sesión">
                 ⏻

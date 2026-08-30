@@ -1,26 +1,30 @@
 import { computeInsights } from '@/lib/insights';
 import { monthLabel, currentMonth } from '@/lib/format';
-import { requireWorkspaceId } from '@/lib/session';
+import { getCurrentUser } from '@/lib/session';
 import InsightCard from '@/components/InsightCard';
 import BottomNav from '@/components/BottomNav';
+import AccountHeaderLink from '@/components/AccountHeaderLink';
 import { logout } from '../login/actions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AnalisisPage() {
-  const workspaceId = await requireWorkspaceId();
-  const insights = computeInsights(workspaceId);
+  const user = await getCurrentUser();
+  const insights = computeInsights(user!.workspace_id);
 
   return (
     <main className="min-h-screen pb-32">
       <div className="mx-auto max-w-md px-4 pt-8 space-y-5">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold text-ink">Análisis</h1>
-          <form action={logout}>
-            <button className="text-muted text-lg" aria-label="Cerrar sesión">
-              ⏻
-            </button>
-          </form>
+          <div className="flex items-center gap-3">
+            <AccountHeaderLink isAdmin={user!.is_admin === 1} />
+            <form action={logout}>
+              <button className="text-muted text-lg" aria-label="Cerrar sesión">
+                ⏻
+              </button>
+            </form>
+          </div>
         </div>
 
         <p className="px-1 text-sm text-muted">
