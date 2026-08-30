@@ -38,8 +38,47 @@ function createConnection() {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_investments_date ON investments(date);
+
+    CREATE TABLE IF NOT EXISTS budget_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL DEFAULT '',
+      detail TEXT NOT NULL DEFAULT '',
+      frequency TEXT NOT NULL DEFAULT '',
+      amount_cents INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
+  seedBudgetItems(conn);
   return conn;
+}
+
+function seedBudgetItems(conn: Database.Database) {
+  const { count } = conn.prepare('SELECT COUNT(*) AS count FROM budget_items').get() as {
+    count: number;
+  };
+  if (count > 0) return;
+
+  const seedRows: [string, string, string, number][] = [
+    ['Inmobiliaria', 'Arriendo casa', '1 de cada mes', 50000000],
+    ['Movistar', 'Internet, parabólica y teléfono fijo casa', '9 de cada mes', 17649000],
+    ['Imexhs - Wendy', 'Cumples y pachangas', '1 de cada mes', 1100000],
+    ['Claro', 'Datos celular personal', '5 siguiente mes', 3500000],
+    ['Barbería', 'Cabello', '10 de cada mes', 16000000],
+    ['Cadena', 'Deuda Yayis', '1 de cada mes', 20000000],
+    ['Madre Yayis', 'Préstamo', '1 de cada mes', 30000000],
+    ['Banco de Bogotá', 'Tarjeta de crédito', '15 de cada mes', 23278800],
+    ['Banco de Bogotá', 'Tarjeta de crédito GOLD', '15 de cada mes', 152384900],
+    ['Parqueadero', 'Moto', '6 de cada mes en efectivo', 7000000],
+    ['Colsubsidio', 'Crédito de consumo', '15 de cada mes', 20000000],
+  ];
+
+  const insert = conn.prepare(
+    `INSERT INTO budget_items (name, detail, frequency, amount_cents) VALUES (?, ?, ?, ?)`
+  );
+  const insertMany = conn.transaction((rows: typeof seedRows) => {
+    for (const row of rows) insert.run(...row);
+  });
+  insertMany(seedRows);
 }
 
 const db = global.__finanzasDb ?? createConnection();
@@ -271,6 +310,57 @@ export function getInvestmentCategoryTotals(): InvestmentCategoryTotalRow[] {
        ORDER BY total_cents DESC`
     )
     .all() as InvestmentCategoryTotalRow[];
+}
+
+export interface BudgetItem {
+  id: number;
+  name: string;
+  detail: string;
+  frequency: string;
+  amount_cents: number;
+  created_at: string;
+}
+
+export interface NewBudgetItem {
+  name: string;
+  detail: string;
+  frequency: string;
+  amountCents: number;
+}
+
+export function addBudgetItem(item: NewBudgetItem): BudgetItem {
+  const stmt = db.prepare(
+    `INSERT INTO budget_items (name, detail, frequency, amount_cents)
+     VALUES (@name, @detail, @frequency, @amountCents)`
+  );
+  const info = stmt.run(item);
+  return db
+    .prepare('SELECT * FROM budget_items WHERE id = ?')
+    .get(info.lastInsertRowid) as BudgetItem;
+}
+
+export function updateBudgetItem(id: number, item: NewBudgetItem): BudgetItem | undefined {
+  db.prepare(
+    `UPDATE budget_items
+     SET name = @name, detail = @detail, frequency = @frequency, amount_cents = @amountCents
+     WHERE id = @id`
+  ).run({ ...item, id });
+  return db.prepare('SELECT * FROM budget_items WHERE id = ?').get(id) as BudgetItem | undefined;
+}
+
+export function deleteBudgetItem(id: number): void {
+  db.prepare('DELETE FROM budget_items WHERE id = ?').run(id);
+}
+
+export function listBudgetItems(): BudgetItem[] {
+  return db.prepare('SELECT * FROM budget_items ORDER BY id ASC').all() as BudgetItem[];
+}
+
+export function getBudgetTotal(): number {
+  const row = db
+    .prepare('SELECT COALESCE(SUM(amount_cents), 0) AS total FROM budget_items')
+    .get() as { total: number };
+  return row.total;
 }
 
 export default db;
