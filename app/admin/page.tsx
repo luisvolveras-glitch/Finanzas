@@ -43,12 +43,12 @@ export default async function AdminPage() {
                 {u.reason && <p className="text-sm italic text-ink">"{u.reason}"</p>}
                 <div className="flex gap-2 pt-2">
                   <form action={approve.bind(null, u.id)}>
-                    <button className="rounded-xl bg-income px-4 py-2 text-sm font-medium text-white">
+                    <button className="rounded-full bg-income px-4 py-2 text-sm font-medium text-white">
                       Aprobar
                     </button>
                   </form>
                   <form action={reject.bind(null, u.id)}>
-                    <button className="rounded-xl bg-expense px-4 py-2 text-sm font-medium text-white">
+                    <button className="rounded-full bg-expense px-4 py-2 text-sm font-medium text-white">
                       Rechazar
                     </button>
                   </form>

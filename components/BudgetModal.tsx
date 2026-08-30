@@ -67,7 +67,7 @@ export default function BudgetModal({
                   required
                   defaultValue={initial?.name}
                   placeholder="Ej: Inmobiliaria, Movistar, Banco de Bogotá..."
-                  className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
 
@@ -78,7 +78,7 @@ export default function BudgetModal({
                   type="text"
                   defaultValue={initial?.detail}
                   placeholder="Ej: Arriendo casa, Tarjeta de crédito..."
-                  className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
 
@@ -89,7 +89,7 @@ export default function BudgetModal({
                   type="text"
                   defaultValue={initial?.frequency}
                   placeholder="Ej: 1 de cada mes, 15 de cada mes..."
-                  className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
 
@@ -103,7 +103,7 @@ export default function BudgetModal({
                   required
                   defaultValue={initial?.amount}
                   placeholder="0.00"
-                  className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-lg font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-lg font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
 
@@ -112,7 +112,7 @@ export default function BudgetModal({
               <button
                 type="submit"
                 disabled={isPending}
-                className="w-full rounded-xl bg-accent py-3 text-white font-medium hover:bg-accentDark transition disabled:opacity-60"
+                className="w-full rounded-full bg-accent py-3 text-white font-medium hover:bg-accentDark transition disabled:opacity-60"
               >
                 {isPending ? 'Guardando...' : initial ? 'Guardar cambios' : 'Agregar'}
               </button>

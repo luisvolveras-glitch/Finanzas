@@ -67,7 +67,7 @@ export default function InvestmentModal({
                 <select
                   name="category"
                   defaultValue={initial?.category}
-                  className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                 >
                   {INVESTMENT_CATEGORIES.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -85,7 +85,7 @@ export default function InvestmentModal({
                   required
                   defaultValue={initial?.name}
                   placeholder="Ej: CDT Bancolombia, Fondo XYZ..."
-                  className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
 
@@ -99,7 +99,7 @@ export default function InvestmentModal({
                   required
                   defaultValue={initial?.amount}
                   placeholder="0.00"
-                  className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-lg font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-lg font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
 
@@ -114,7 +114,7 @@ export default function InvestmentModal({
                   min="0"
                   defaultValue={initial?.interestRate ?? undefined}
                   placeholder="Ej: 10.5"
-                  className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
 
@@ -125,7 +125,7 @@ export default function InvestmentModal({
                   type="date"
                   required
                   defaultValue={initial?.date ?? todayISO()}
-                  className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
 
@@ -134,7 +134,7 @@ export default function InvestmentModal({
               <button
                 type="submit"
                 disabled={isPending}
-                className="w-full rounded-xl bg-accent py-3 text-white font-medium hover:bg-accentDark transition disabled:opacity-60"
+                className="w-full rounded-full bg-accent py-3 text-white font-medium hover:bg-accentDark transition disabled:opacity-60"
               >
                 {isPending ? 'Guardando...' : initial ? 'Guardar cambios' : 'Agregar'}
               </button>

@@ -117,7 +117,7 @@ export default function TransactionModal({
                   required
                   defaultValue={initial?.amount}
                   placeholder="0.00"
-                  className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-lg font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-lg font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
 
@@ -127,7 +127,7 @@ export default function TransactionModal({
                   name="category"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                 >
                   {categories.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -151,7 +151,7 @@ export default function TransactionModal({
                       ? 'Ej: bono, préstamo, venta de algo, reembolso...'
                       : '¿En qué fue?'
                   }
-                  className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
 
@@ -164,7 +164,7 @@ export default function TransactionModal({
                     name="debtId"
                     value={debtId}
                     onChange={(e) => setDebtId(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                    className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                   >
                     <option value="">No es pago de deuda</option>
                     {debts.map((d) => (
@@ -183,7 +183,7 @@ export default function TransactionModal({
                   type="date"
                   required
                   defaultValue={initial?.date ?? todayISO()}
-                  className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
 
@@ -192,7 +192,7 @@ export default function TransactionModal({
               <button
                 type="submit"
                 disabled={isPending}
-                className="w-full rounded-xl bg-accent py-3 text-white font-medium hover:bg-accentDark transition disabled:opacity-60"
+                className="w-full rounded-full bg-accent py-3 text-white font-medium hover:bg-accentDark transition disabled:opacity-60"
               >
                 {isPending ? 'Guardando...' : initial ? 'Guardar cambios' : 'Agregar'}
               </button>

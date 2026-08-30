@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { signup } from '@/app/signup/actions';
+import Switch from './Switch';
 
 export default function SignupForm() {
   const [share, setShare] = useState(false);
@@ -45,7 +46,7 @@ export default function SignupForm() {
           name="email"
           type="email"
           required
-          className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+          className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
         />
       </div>
 
@@ -56,7 +57,7 @@ export default function SignupForm() {
             name="firstName"
             type="text"
             required
-            className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+            className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
           />
         </div>
         <div>
@@ -65,7 +66,7 @@ export default function SignupForm() {
             name="lastName"
             type="text"
             required
-            className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+            className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
           />
         </div>
       </div>
@@ -76,7 +77,7 @@ export default function SignupForm() {
           name="phone"
           type="tel"
           required
-          className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+          className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
         />
       </div>
 
@@ -88,7 +89,7 @@ export default function SignupForm() {
             type="password"
             required
             minLength={8}
-            className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+            className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
           />
         </div>
         <div>
@@ -98,7 +99,7 @@ export default function SignupForm() {
             type="password"
             required
             minLength={8}
-            className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+            className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
           />
         </div>
       </div>
@@ -108,20 +109,16 @@ export default function SignupForm() {
         <textarea
           name="reason"
           rows={2}
-          className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+          className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
         />
       </div>
 
-      <label className="flex items-start gap-2 text-sm text-ink">
-        <input
-          type="checkbox"
-          name="share"
-          checked={share}
-          onChange={(e) => setShare(e.target.checked)}
-          className="mt-1"
-        />
-        Quiero compartir cuenta con alguien que ya tiene acceso (verán los mismos datos)
-      </label>
+      <div className="flex items-center gap-3 rounded-2xl bg-bg px-4 py-3">
+        <Switch name="share" checked={share} onChange={setShare} />
+        <span className="text-sm text-ink">
+          Quiero compartir cuenta con alguien que ya tiene acceso (verán los mismos datos)
+        </span>
+      </div>
 
       {share && (
         <div>
@@ -131,7 +128,7 @@ export default function SignupForm() {
             type="email"
             required={share}
             placeholder="correo@ejemplo.com"
-            className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+            className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
           />
         </div>
       )}
@@ -141,7 +138,7 @@ export default function SignupForm() {
       <button
         type="submit"
         disabled={isPending}
-        className="w-full rounded-xl bg-accent py-3 text-white font-medium hover:bg-accentDark transition disabled:opacity-60"
+        className="w-full rounded-full bg-accent py-3 text-white font-medium hover:bg-accentDark transition disabled:opacity-60"
       >
         {isPending ? 'Enviando...' : 'Solicitar acceso'}
       </button>

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import LogoIcon from '@/components/icons/LogoIcon';
 import { login } from './actions';
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -19,8 +20,10 @@ export default async function LoginPage({
     <main className="min-h-screen flex items-center justify-center bg-bg px-4">
       <form action={login} className="w-full max-w-sm bg-card rounded-xl2 shadow-soft p-8 space-y-4">
         <input type="hidden" name="next" value={params?.next || '/'} />
-        <div className="text-center space-y-1">
-          <div className="text-3xl">💙</div>
+        <div className="text-center space-y-2">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-ink text-white">
+            <LogoIcon className="h-7 w-7" />
+          </div>
           <h1 className="text-xl font-semibold text-ink">Mis Finanzas</h1>
           <p className="text-sm text-muted">Ingresa tu correo y contraseña para continuar</p>
         </div>
@@ -31,18 +34,18 @@ export default async function LoginPage({
           placeholder="Correo"
           required
           autoFocus
-          className="w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+          className="w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
         />
         <input
           type="password"
           name="password"
           placeholder="Contraseña"
           required
-          className="w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+          className="w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
         />
         <button
           type="submit"
-          className="w-full rounded-xl bg-accent py-3 text-white font-medium hover:bg-accentDark transition"
+          className="w-full rounded-full bg-accent py-3 text-white font-medium hover:bg-accentDark transition"
         >
           Entrar
         </button>

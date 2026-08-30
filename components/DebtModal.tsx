@@ -68,7 +68,7 @@ export default function DebtModal({
                   required
                   defaultValue={initial?.entity}
                   placeholder="Ej: Sra Marina, Banco de Bogotá..."
-                  className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
 
@@ -79,7 +79,7 @@ export default function DebtModal({
                   type="text"
                   defaultValue={initial?.detail}
                   placeholder="Ej: Préstamo gastos variados..."
-                  className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
 
@@ -93,7 +93,7 @@ export default function DebtModal({
                   required
                   defaultValue={initial?.amount}
                   placeholder="0.00"
-                  className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-lg font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-lg font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
 
@@ -107,7 +107,7 @@ export default function DebtModal({
                     min="0"
                     defaultValue={initial?.interestRate ?? undefined}
                     placeholder="Ej: 2.5"
-                    className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                    className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                   />
                 </div>
                 <div>
@@ -119,7 +119,7 @@ export default function DebtModal({
                     min="1"
                     defaultValue={initial?.termMonths ?? undefined}
                     placeholder="Ej: 4"
-                    className="mt-1 w-full rounded-xl border border-border px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                    className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
                   />
                 </div>
               </div>
@@ -129,7 +129,7 @@ export default function DebtModal({
               <button
                 type="submit"
                 disabled={isPending}
-                className="w-full rounded-xl bg-accent py-3 text-white font-medium hover:bg-accentDark transition disabled:opacity-60"
+                className="w-full rounded-full bg-accent py-3 text-white font-medium hover:bg-accentDark transition disabled:opacity-60"
               >
                 {isPending ? 'Guardando...' : initial ? 'Guardar cambios' : 'Agregar'}
               </button>
