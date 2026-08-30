@@ -43,16 +43,23 @@ export default async function PresupuestoPage({
 
   const debtRows: BudgetRow[] = debts
     .map((debt): BudgetRow | null => {
+      const paidThisMonth = getDebtPaidTotalForMonth(debt.id, workspaceId, month);
       const paidUpToMonth = getDebtPaidTotalUpToMonth(debt.id, workspaceId, month);
-      const remaining = debt.principal_cents - paidUpToMonth;
-      if (remaining <= 0) return null;
+      const paidBeforeThisMonth = paidUpToMonth - paidThisMonth;
+      const remainingBeforeThisMonth = debt.principal_cents - paidBeforeThisMonth;
+      if (remainingBeforeThisMonth <= 0) return null;
+
+      const installments = debt.term_months && debt.term_months > 0 ? debt.term_months : 1;
+      const installmentCents = Math.round(debt.principal_cents / installments);
+      const amountCents = Math.min(installmentCents, remainingBeforeThisMonth);
+
       return {
         key: `debt-${debt.id}`,
         name: debt.entity,
         detail: debt.detail,
-        frequency: 'Deuda',
-        amountCents: remaining,
-        paidCents: getDebtPaidTotalForMonth(debt.id, workspaceId, month),
+        frequency: 'Deuda (cuota)',
+        amountCents,
+        paidCents: paidThisMonth,
       };
     })
     .filter((r): r is BudgetRow => r !== null);
