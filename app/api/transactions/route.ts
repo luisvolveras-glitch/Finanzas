@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
     date,
     debtId: null,
     budgetItemId: null,
+    cardId: null,
     workspaceId,
     currency: 'COP',
   });

@@ -32,6 +32,16 @@ export function DebtIcon({ className }: IconProps) {
   );
 }
 
+export function CreditCardIcon({ className }: IconProps) {
+  return (
+    <svg className={className} {...base}>
+      <rect x="2.5" y="5" width="19" height="14" rx="2.5" />
+      <path d="M2.5 9.5h19" />
+      <path d="M6 15h4" />
+    </svg>
+  );
+}
+
 export function TransactionIcon({ className }: IconProps) {
   return (
     <svg className={className} {...base}>

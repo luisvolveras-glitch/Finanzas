@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import type { TxType } from './categories';
 import { hashPassword } from './password';
+import { addMonths } from './format';
 
 const dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'finanzas.db');
 
@@ -59,6 +60,25 @@ function createConnection() {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS credit_cards (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL DEFAULT '',
+      last_four TEXT NOT NULL DEFAULT '',
+      workspace_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS credit_card_purchases (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      card_id INTEGER NOT NULL,
+      detail TEXT NOT NULL DEFAULT '',
+      total_cents INTEGER NOT NULL,
+      installments INTEGER NOT NULL DEFAULT 1,
+      date TEXT NOT NULL,
+      workspace_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS workspaces (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL DEFAULT '',
@@ -101,6 +121,7 @@ function addColumnIfMissing(
 function migrateColumns(conn: Database.Database) {
   addColumnIfMissing(conn, 'transactions', 'debt_id', 'INTEGER');
   addColumnIfMissing(conn, 'transactions', 'budget_item_id', 'INTEGER');
+  addColumnIfMissing(conn, 'transactions', 'card_id', 'INTEGER');
   addColumnIfMissing(conn, 'transactions', 'workspace_id', 'INTEGER');
   addColumnIfMissing(conn, 'transactions', 'currency', "TEXT NOT NULL DEFAULT 'COP'");
   addColumnIfMissing(conn, 'investments', 'workspace_id', 'INTEGER');
@@ -333,6 +354,7 @@ export interface Transaction {
   created_at: string;
   debt_id: number | null;
   budget_item_id: number | null;
+  card_id: number | null;
   workspace_id: number;
   currency: Currency;
 }
@@ -345,14 +367,15 @@ export interface NewTransaction {
   date: string;
   debtId: number | null;
   budgetItemId: number | null;
+  cardId: number | null;
   workspaceId: number;
   currency: Currency;
 }
 
 export function addTransaction(tx: NewTransaction): Transaction {
   const stmt = db.prepare(
-    `INSERT INTO transactions (type, amount_cents, detail, category, date, debt_id, budget_item_id, workspace_id, currency)
-     VALUES (@type, @amountCents, @detail, @category, @date, @debtId, @budgetItemId, @workspaceId, @currency)`
+    `INSERT INTO transactions (type, amount_cents, detail, category, date, debt_id, budget_item_id, card_id, workspace_id, currency)
+     VALUES (@type, @amountCents, @detail, @category, @date, @debtId, @budgetItemId, @cardId, @workspaceId, @currency)`
   );
   const info = stmt.run(tx);
   return db
@@ -368,7 +391,8 @@ export function updateTransaction(
   db.prepare(
     `UPDATE transactions
      SET type = @type, amount_cents = @amountCents, detail = @detail, category = @category,
-         date = @date, debt_id = @debtId, budget_item_id = @budgetItemId, currency = @currency
+         date = @date, debt_id = @debtId, budget_item_id = @budgetItemId, card_id = @cardId,
+         currency = @currency
      WHERE id = @id AND workspace_id = @workspaceId`
   ).run({ ...tx, id, workspaceId });
   return db
@@ -798,6 +822,149 @@ export function getDebtPayments(debtId: number, workspaceId: number): Transactio
     .all(debtId, workspaceId) as Transaction[];
 }
 
+export interface CreditCard {
+  id: number;
+  name: string;
+  last_four: string;
+  created_at: string;
+  workspace_id: number;
+}
+
+export interface NewCreditCard {
+  name: string;
+  lastFour: string;
+  workspaceId: number;
+}
+
+export function addCreditCard(card: NewCreditCard): CreditCard {
+  const stmt = db.prepare(
+    `INSERT INTO credit_cards (name, last_four, workspace_id) VALUES (@name, @lastFour, @workspaceId)`
+  );
+  const info = stmt.run(card);
+  return db.prepare('SELECT * FROM credit_cards WHERE id = ?').get(info.lastInsertRowid) as CreditCard;
+}
+
+export function updateCreditCard(
+  id: number,
+  workspaceId: number,
+  card: NewCreditCard
+): CreditCard | undefined {
+  db.prepare(
+    `UPDATE credit_cards SET name = @name, last_four = @lastFour
+     WHERE id = @id AND workspace_id = @workspaceId`
+  ).run({ ...card, id, workspaceId });
+  return db
+    .prepare('SELECT * FROM credit_cards WHERE id = ? AND workspace_id = ?')
+    .get(id, workspaceId) as CreditCard | undefined;
+}
+
+export function deleteCreditCard(id: number, workspaceId: number): void {
+  const remove = db.transaction((cardId: number, ws: number) => {
+    db.prepare('UPDATE transactions SET card_id = NULL WHERE card_id = ? AND workspace_id = ?').run(
+      cardId,
+      ws
+    );
+    db.prepare('DELETE FROM credit_card_purchases WHERE card_id = ? AND workspace_id = ?').run(
+      cardId,
+      ws
+    );
+    db.prepare('DELETE FROM credit_cards WHERE id = ? AND workspace_id = ?').run(cardId, ws);
+  });
+  remove(id, workspaceId);
+}
+
+export function listCreditCards(workspaceId: number): CreditCard[] {
+  return db
+    .prepare('SELECT * FROM credit_cards WHERE workspace_id = ? ORDER BY id ASC')
+    .all(workspaceId) as CreditCard[];
+}
+
+export interface CreditCardPurchase {
+  id: number;
+  card_id: number;
+  detail: string;
+  total_cents: number;
+  installments: number;
+  date: string;
+  created_at: string;
+  workspace_id: number;
+}
+
+export interface NewCreditCardPurchase {
+  cardId: number;
+  detail: string;
+  totalCents: number;
+  installments: number;
+  date: string;
+  workspaceId: number;
+}
+
+export function addCreditCardPurchase(purchase: NewCreditCardPurchase): CreditCardPurchase {
+  const stmt = db.prepare(
+    `INSERT INTO credit_card_purchases (card_id, detail, total_cents, installments, date, workspace_id)
+     VALUES (@cardId, @detail, @totalCents, @installments, @date, @workspaceId)`
+  );
+  const info = stmt.run(purchase);
+  return db
+    .prepare('SELECT * FROM credit_card_purchases WHERE id = ?')
+    .get(info.lastInsertRowid) as CreditCardPurchase;
+}
+
+export function updateCreditCardPurchase(
+  id: number,
+  workspaceId: number,
+  purchase: NewCreditCardPurchase
+): CreditCardPurchase | undefined {
+  db.prepare(
+    `UPDATE credit_card_purchases
+     SET card_id = @cardId, detail = @detail, total_cents = @totalCents,
+         installments = @installments, date = @date
+     WHERE id = @id AND workspace_id = @workspaceId`
+  ).run({ ...purchase, id, workspaceId });
+  return db
+    .prepare('SELECT * FROM credit_card_purchases WHERE id = ? AND workspace_id = ?')
+    .get(id, workspaceId) as CreditCardPurchase | undefined;
+}
+
+export function deleteCreditCardPurchase(id: number, workspaceId: number): void {
+  db.prepare('DELETE FROM credit_card_purchases WHERE id = ? AND workspace_id = ?').run(
+    id,
+    workspaceId
+  );
+}
+
+export function listCreditCardPurchases(cardId: number, workspaceId: number): CreditCardPurchase[] {
+  return db
+    .prepare(
+      'SELECT * FROM credit_card_purchases WHERE card_id = ? AND workspace_id = ? ORDER BY date DESC, id DESC'
+    )
+    .all(cardId, workspaceId) as CreditCardPurchase[];
+}
+
+export function getCreditCardMonthlyDue(cardId: number, workspaceId: number, month: string): number {
+  const purchases = listCreditCardPurchases(cardId, workspaceId);
+  return purchases.reduce((sum, p) => {
+    const firstMonth = p.date.slice(0, 7);
+    const lastMonth = addMonths(firstMonth, p.installments - 1);
+    if (month >= firstMonth && month <= lastMonth) {
+      return sum + Math.round(p.total_cents / p.installments);
+    }
+    return sum;
+  }, 0);
+}
+
+export function getCreditCardPaidTotal(cardId: number, workspaceId: number, month: string): number {
+  const row = db
+    .prepare(
+      `SELECT COALESCE(SUM(amount_cents), 0) AS total
+       FROM transactions
+       WHERE card_id = ? AND type = 'expense' AND workspace_id = ?
+         AND strftime('%Y-%m', date) = ?`
+    )
+    .get(cardId, workspaceId, month) as { total: number };
+  return row.total;
+}
+
 export interface BudgetRow {
   key: string;
   name: string;
@@ -806,11 +973,13 @@ export interface BudgetRow {
   amountCents: number;
   paidCents: number;
   itemId?: number;
+  cardId?: number;
 }
 
 export function getBudgetRows(workspaceId: number, month: string): BudgetRow[] {
   const items = listBudgetItems(workspaceId);
   const debts = listDebts(workspaceId);
+  const cards = listCreditCards(workspaceId);
 
   const itemRows: BudgetRow[] = items.map((item) => ({
     key: `item-${item.id}`,
@@ -845,7 +1014,23 @@ export function getBudgetRows(workspaceId: number, month: string): BudgetRow[] {
     })
     .filter((r): r is BudgetRow => r !== null);
 
-  return [...itemRows, ...debtRows];
+  const cardRows: BudgetRow[] = cards
+    .map((card): BudgetRow | null => {
+      const amountCents = getCreditCardMonthlyDue(card.id, workspaceId, month);
+      if (amountCents <= 0) return null;
+      return {
+        key: `card-${card.id}`,
+        name: card.name,
+        detail: card.last_four ? `Terminada en ${card.last_four}` : '',
+        frequency: 'Tarjeta de crédito',
+        amountCents,
+        paidCents: getCreditCardPaidTotal(card.id, workspaceId, month),
+        cardId: card.id,
+      };
+    })
+    .filter((r): r is BudgetRow => r !== null);
+
+  return [...itemRows, ...debtRows, ...cardRows];
 }
 
 export interface BudgetPayment {
@@ -860,12 +1045,13 @@ export function getBudgetPayments(workspaceId: number, month: string): BudgetPay
   return db
     .prepare(
       `SELECT t.id, t.date, t.detail, t.amount_cents,
-              COALESCE(bi.name, d.entity) AS target
+              COALESCE(bi.name, d.entity, cc.name) AS target
        FROM transactions t
        LEFT JOIN budget_items bi ON bi.id = t.budget_item_id
        LEFT JOIN debts d ON d.id = t.debt_id
+       LEFT JOIN credit_cards cc ON cc.id = t.card_id
        WHERE t.workspace_id = ? AND t.type = 'expense'
-         AND (t.budget_item_id IS NOT NULL OR t.debt_id IS NOT NULL)
+         AND (t.budget_item_id IS NOT NULL OR t.debt_id IS NOT NULL OR t.card_id IS NOT NULL)
          AND strftime('%Y-%m', t.date) = ?
        ORDER BY t.date ASC, t.id ASC`
     )

@@ -1,18 +1,25 @@
 'use client';
 
-import TransactionModal, { type BudgetItemOption, type DebtOption } from './TransactionModal';
+import TransactionModal, {
+  type BudgetItemOption,
+  type CardLinkOption,
+  type DebtOption,
+} from './TransactionModal';
 
 export default function AddButton({
   debts = [],
   budgetItems = [],
+  cards = [],
 }: {
   debts?: DebtOption[];
   budgetItems?: BudgetItemOption[];
+  cards?: CardLinkOption[];
 }) {
   return (
     <TransactionModal
       debts={debts}
       budgetItems={budgetItems}
+      cards={cards}
       trigger={(open) => (
         <button
           onClick={open}

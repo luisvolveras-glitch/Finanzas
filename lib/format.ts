@@ -48,6 +48,12 @@ export function addMonths(month: string, delta: number): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
+export function monthsBetween(a: string, b: string): number {
+  const [ay, am] = a.split('-').map(Number);
+  const [by, bm] = b.split('-').map(Number);
+  return (by - ay) * 12 + (bm - am);
+}
+
 export function monthWindow(center: string, monthsBack: number, monthsForward: number): string[] {
   const result: string[] = [];
   for (let i = monthsForward; i >= -monthsBack; i--) {

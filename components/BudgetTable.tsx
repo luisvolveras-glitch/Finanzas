@@ -65,6 +65,10 @@ export default function BudgetTable({ rows }: { rows: BudgetRow[] }) {
                         </button>
                       </form>
                     </>
+                  ) : row.cardId ? (
+                    <Link href="/tarjetas" className="text-xs font-medium text-accent">
+                      Ver tarjeta
+                    </Link>
                   ) : (
                     <Link href="/deudas" className="text-xs font-medium text-accent">
                       Ver deuda

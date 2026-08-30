@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   AnalysisIcon,
   BudgetIcon,
+  CreditCardIcon,
   DebtIcon,
   InvestmentIcon,
   TransactionIcon,
@@ -14,6 +15,7 @@ import {
 const TABS: { href: string; label: string; Icon: (props: IconProps) => React.ReactElement }[] = [
   { href: '/presupuesto', label: 'Presupuesto', Icon: BudgetIcon },
   { href: '/deudas', label: 'Deudas', Icon: DebtIcon },
+  { href: '/tarjetas', label: 'Tarjetas', Icon: CreditCardIcon },
   { href: '/', label: 'Movimientos', Icon: TransactionIcon },
   { href: '/inversiones', label: 'Inversiones', Icon: InvestmentIcon },
   { href: '/analisis', label: 'Análisis', Icon: AnalysisIcon },

@@ -5,6 +5,7 @@ import {
   getTotals,
   getTotalsUSD,
   listBudgetItems,
+  listCreditCards,
   listDebts,
   listTransactions,
 } from '@/lib/db';
@@ -48,6 +49,10 @@ export default async function Home({
   const budgetItemOptions = listBudgetItems(workspaceId).map((b) => ({
     id: b.id,
     label: b.detail ? `${b.name} - ${b.detail}` : b.name,
+  }));
+  const cardOptions = listCreditCards(workspaceId).map((c) => ({
+    id: c.id,
+    label: c.last_four ? `${c.name} - ${c.last_four}` : c.name,
   }));
 
   return (
@@ -112,6 +117,7 @@ export default async function Home({
             transactions={transactions}
             debts={debtOptions}
             budgetItems={budgetItemOptions}
+            cards={cardOptions}
           />
         </section>
 
@@ -122,7 +128,7 @@ export default async function Home({
         </section>
       </div>
 
-      <AddButton debts={debtOptions} budgetItems={budgetItemOptions} />
+      <AddButton debts={debtOptions} budgetItems={budgetItemOptions} cards={cardOptions} />
       <BottomNav />
     </main>
   );

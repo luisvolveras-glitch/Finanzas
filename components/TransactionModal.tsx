@@ -14,6 +14,7 @@ export interface EditableTransaction {
   date: string;
   debtId: number | null;
   budgetItemId: number | null;
+  cardId: number | null;
   currency: 'COP' | 'USD';
 }
 
@@ -27,16 +28,23 @@ export interface BudgetItemOption {
   label: string;
 }
 
+export interface CardLinkOption {
+  id: number;
+  label: string;
+}
+
 export default function TransactionModal({
   trigger,
   initial,
   debts = [],
   budgetItems = [],
+  cards = [],
 }: {
   trigger: (open: () => void) => React.ReactNode;
   initial?: EditableTransaction;
   debts?: DebtOption[];
   budgetItems?: BudgetItemOption[];
+  cards?: CardLinkOption[];
 }) {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<TxType>(initial?.type ?? 'expense');
@@ -47,6 +55,7 @@ export default function TransactionModal({
   const [budgetItemId, setBudgetItemId] = useState(
     initial?.budgetItemId ? String(initial.budgetItemId) : ''
   );
+  const [cardId, setCardId] = useState(initial?.cardId ? String(initial.cardId) : '');
   const [currency, setCurrency] = useState<'COP' | 'USD'>(initial?.currency ?? 'COP');
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -60,16 +69,18 @@ export default function TransactionModal({
     if (nextType === 'income') {
       setDebtId('');
       setBudgetItemId('');
+      setCardId('');
     }
   }
 
   function selectCurrency(nextCurrency: 'COP' | 'USD') {
     setCurrency(nextCurrency);
     if (nextCurrency === 'USD') {
-      // Las deudas y el presupuesto son en pesos, no se pueden vincular a un
-      // movimiento en dólares.
+      // Las deudas, el presupuesto y las tarjetas son en pesos, no se pueden
+      // vincular a un movimiento en dólares.
       setDebtId('');
       setBudgetItemId('');
+      setCardId('');
     }
   }
 
@@ -240,6 +251,27 @@ export default function TransactionModal({
                     {budgetItems.map((b) => (
                       <option key={b.id} value={b.id}>
                         {b.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {type === 'expense' && currency === 'COP' && cards.length > 0 && (
+                <div>
+                  <label className="text-xs font-medium text-muted">
+                    ¿Es un pago de tarjeta de crédito? (opcional)
+                  </label>
+                  <select
+                    name="cardId"
+                    value={cardId}
+                    onChange={(e) => setCardId(e.target.value)}
+                    className="mt-1 w-full rounded-2xl border-0 bg-bg px-4 py-3 text-ink focus:outline-none focus:ring-2 focus:ring-accent"
+                  >
+                    <option value="">No es pago de tarjeta</option>
+                    {cards.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label}
                       </option>
                     ))}
                   </select>

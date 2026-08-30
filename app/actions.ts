@@ -22,6 +22,8 @@ function parseForm(formData: FormData, workspaceId: number) {
   const budgetItemIdRaw = String(formData.get('budgetItemId') || '').trim();
   const budgetItemId =
     type === 'expense' && currency === 'COP' && budgetItemIdRaw ? Number(budgetItemIdRaw) : null;
+  const cardIdRaw = String(formData.get('cardId') || '').trim();
+  const cardId = type === 'expense' && currency === 'COP' && cardIdRaw ? Number(cardIdRaw) : null;
 
   return {
     type,
@@ -31,6 +33,7 @@ function parseForm(formData: FormData, workspaceId: number) {
     date,
     debtId,
     budgetItemId,
+    cardId,
     workspaceId,
     currency,
   };
@@ -58,6 +61,7 @@ export async function createTransaction(formData: FormData) {
   addTransaction(data);
   revalidatePath('/');
   revalidatePath('/deudas');
+  revalidatePath('/tarjetas');
   revalidatePath('/presupuesto');
   revalidatePath('/analisis');
 }
@@ -69,6 +73,7 @@ export async function editTransaction(id: number, formData: FormData) {
   updateTransaction(id, workspaceId, data);
   revalidatePath('/');
   revalidatePath('/deudas');
+  revalidatePath('/tarjetas');
   revalidatePath('/presupuesto');
   revalidatePath('/analisis');
 }
@@ -78,6 +83,7 @@ export async function removeTransaction(id: number) {
   deleteTransaction(id, workspaceId);
   revalidatePath('/');
   revalidatePath('/deudas');
+  revalidatePath('/tarjetas');
   revalidatePath('/presupuesto');
   revalidatePath('/analisis');
 }
