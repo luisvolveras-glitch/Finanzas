@@ -12,6 +12,7 @@ import TransactionsList from '@/components/TransactionsList';
 import MonthlySummaryTable from '@/components/MonthlySummaryTable';
 import CategoryTable from '@/components/CategoryTable';
 import AddButton from '@/components/AddButton';
+import BottomNav from '@/components/BottomNav';
 import { logout } from './login/actions';
 
 export const dynamic = 'force-dynamic';
@@ -31,7 +32,7 @@ export default async function Home({
   const monthlySummary = getMonthlySummary(12);
 
   return (
-    <main className="min-h-screen pb-28">
+    <main className="min-h-screen pb-32">
       <div className="mx-auto max-w-md px-4 pt-8 space-y-5">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold text-ink">Mis Finanzas</h1>
@@ -76,6 +77,7 @@ export default async function Home({
       </div>
 
       <AddButton />
+      <BottomNav />
     </main>
   );
 }

@@ -27,6 +27,17 @@ function createConnection() {
     );
     CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
     CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
+
+    CREATE TABLE IF NOT EXISTS investments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      category TEXT NOT NULL DEFAULT 'otro_inversion',
+      name TEXT NOT NULL DEFAULT '',
+      amount_cents INTEGER NOT NULL,
+      interest_rate REAL,
+      date TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_investments_date ON investments(date);
   `);
   return conn;
 }
@@ -174,6 +185,92 @@ export function getAvailableMonths(): string[] {
       )
       .all() as { month: string }[]
   ).map((r) => r.month);
+}
+
+export interface Investment {
+  id: number;
+  category: string;
+  name: string;
+  amount_cents: number;
+  interest_rate: number | null;
+  date: string;
+  created_at: string;
+}
+
+export interface NewInvestment {
+  category: string;
+  name: string;
+  amountCents: number;
+  interestRate: number | null;
+  date: string;
+}
+
+export function addInvestment(inv: NewInvestment): Investment {
+  const stmt = db.prepare(
+    `INSERT INTO investments (category, name, amount_cents, interest_rate, date)
+     VALUES (@category, @name, @amountCents, @interestRate, @date)`
+  );
+  const info = stmt.run(inv);
+  return db
+    .prepare('SELECT * FROM investments WHERE id = ?')
+    .get(info.lastInsertRowid) as Investment;
+}
+
+export function updateInvestment(id: number, inv: NewInvestment): Investment | undefined {
+  db.prepare(
+    `UPDATE investments
+     SET category = @category, name = @name, amount_cents = @amountCents,
+         interest_rate = @interestRate, date = @date
+     WHERE id = @id`
+  ).run({ ...inv, id });
+  return db.prepare('SELECT * FROM investments WHERE id = ?').get(id) as Investment | undefined;
+}
+
+export function deleteInvestment(id: number): void {
+  db.prepare('DELETE FROM investments WHERE id = ?').run(id);
+}
+
+export function listInvestments(limit = 200): Investment[] {
+  return db
+    .prepare('SELECT * FROM investments ORDER BY date DESC, id DESC LIMIT ?')
+    .all(limit) as Investment[];
+}
+
+export interface InvestmentTotals {
+  total_cents: number;
+  weighted_rate: number | null;
+}
+
+export function getInvestmentTotals(): InvestmentTotals {
+  const row = db
+    .prepare(
+      `SELECT
+         COALESCE(SUM(amount_cents), 0) AS total_cents,
+         CASE WHEN SUM(amount_cents) > 0
+           THEN SUM(amount_cents * COALESCE(interest_rate, 0)) * 1.0 / SUM(amount_cents)
+           ELSE NULL
+         END AS weighted_rate
+       FROM investments`
+    )
+    .get() as InvestmentTotals;
+  return row;
+}
+
+export interface InvestmentCategoryTotalRow {
+  category: string;
+  total_cents: number;
+  count: number;
+}
+
+export function getInvestmentCategoryTotals(): InvestmentCategoryTotalRow[] {
+  return db
+    .prepare(
+      `SELECT category, SUM(amount_cents) AS total_cents, COUNT(*) AS count
+       FROM investments
+       GROUP BY category
+       ORDER BY total_cents DESC`
+    )
+    .all() as InvestmentCategoryTotalRow[];
 }
 
 export default db;
