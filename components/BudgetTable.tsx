@@ -1,17 +1,8 @@
 import Link from 'next/link';
 import { removeBudgetItem } from '@/app/presupuesto/actions';
 import { formatMoney } from '@/lib/format';
+import type { BudgetRow } from '@/lib/db';
 import EditBudgetButton from './EditBudgetButton';
-
-export interface BudgetRow {
-  key: string;
-  name: string;
-  detail: string;
-  frequency: string;
-  amountCents: number;
-  paidCents: number;
-  itemId?: number;
-}
 
 export default function BudgetTable({ rows }: { rows: BudgetRow[] }) {
   if (rows.length === 0) {

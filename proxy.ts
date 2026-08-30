@@ -6,7 +6,11 @@ import { getUserById } from './lib/db';
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  if (pathname.startsWith('/api') || pathname.startsWith('/login') || pathname.startsWith('/signup')) {
+  if (
+    pathname.startsWith('/api/transactions') ||
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/signup')
+  ) {
     return NextResponse.next();
   }
 

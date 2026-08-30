@@ -759,4 +759,78 @@ export function getDebtPayments(debtId: number, workspaceId: number): Transactio
     .all(debtId, workspaceId) as Transaction[];
 }
 
+export interface BudgetRow {
+  key: string;
+  name: string;
+  detail: string;
+  frequency: string;
+  amountCents: number;
+  paidCents: number;
+  itemId?: number;
+}
+
+export function getBudgetRows(workspaceId: number, month: string): BudgetRow[] {
+  const items = listBudgetItems(workspaceId);
+  const debts = listDebts(workspaceId);
+
+  const itemRows: BudgetRow[] = items.map((item) => ({
+    key: `item-${item.id}`,
+    name: item.name,
+    detail: item.detail,
+    frequency: item.frequency,
+    amountCents: item.amount_cents,
+    paidCents: getBudgetItemPaidTotal(item.id, workspaceId, month),
+    itemId: item.id,
+  }));
+
+  const debtRows: BudgetRow[] = debts
+    .map((debt): BudgetRow | null => {
+      const paidThisMonth = getDebtPaidTotalForMonth(debt.id, workspaceId, month);
+      const paidUpToMonth = getDebtPaidTotalUpToMonth(debt.id, workspaceId, month);
+      const paidBeforeThisMonth = paidUpToMonth - paidThisMonth;
+      const remainingBeforeThisMonth = debt.principal_cents - paidBeforeThisMonth;
+      if (remainingBeforeThisMonth <= 0) return null;
+
+      const installments = debt.term_months && debt.term_months > 0 ? debt.term_months : 1;
+      const installmentCents = Math.round(debt.principal_cents / installments);
+      const amountCents = Math.min(installmentCents, remainingBeforeThisMonth);
+
+      return {
+        key: `debt-${debt.id}`,
+        name: debt.entity,
+        detail: debt.detail,
+        frequency: 'Deuda (cuota)',
+        amountCents,
+        paidCents: paidThisMonth,
+      };
+    })
+    .filter((r): r is BudgetRow => r !== null);
+
+  return [...itemRows, ...debtRows];
+}
+
+export interface BudgetPayment {
+  id: number;
+  date: string;
+  detail: string;
+  amount_cents: number;
+  target: string;
+}
+
+export function getBudgetPayments(workspaceId: number, month: string): BudgetPayment[] {
+  return db
+    .prepare(
+      `SELECT t.id, t.date, t.detail, t.amount_cents,
+              COALESCE(bi.name, d.entity) AS target
+       FROM transactions t
+       LEFT JOIN budget_items bi ON bi.id = t.budget_item_id
+       LEFT JOIN debts d ON d.id = t.debt_id
+       WHERE t.workspace_id = ? AND t.type = 'expense'
+         AND (t.budget_item_id IS NOT NULL OR t.debt_id IS NOT NULL)
+         AND strftime('%Y-%m', t.date) = ?
+       ORDER BY t.date ASC, t.id ASC`
+    )
+    .all(workspaceId, month) as BudgetPayment[];
+}
+
 export default db;
