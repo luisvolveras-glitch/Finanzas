@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { getAvailableMonths, getBudgetRows, getTotals } from '@/lib/db';
-import { addMonths, currentMonth, formatMoney, monthLabel } from '@/lib/format';
+import { addMonths, currentMonth, formatMoney, monthLabel, monthWindow } from '@/lib/format';
 import { getCurrentUser } from '@/lib/session';
 import AddBudgetButton from '@/components/AddBudgetButton';
 import BudgetTable from '@/components/BudgetTable';
@@ -20,8 +20,16 @@ export default async function PresupuestoPage({
   const user = await getCurrentUser();
   const workspaceId = user!.workspace_id;
   const month = params.month || currentMonth();
-  const months = getAvailableMonths(workspaceId);
   const nextMonth = addMonths(month, 1);
+
+  // El presupuesto se repite mes a mes aunque todavía no haya movimientos
+  // registrados en ese mes, así que el selector no puede depender solo de
+  // getAvailableMonths (que solo ve meses con movimientos reales). Se arma
+  // una ventana amplia de meses navegables alrededor de hoy, sumando
+  // cualquier mes con movimientos que quede fuera de esa ventana.
+  const months = Array.from(
+    new Set([...monthWindow(currentMonth(), 12, 12), ...getAvailableMonths(workspaceId)])
+  ).sort((a, b) => (a < b ? 1 : -1));
 
   const rows = getBudgetRows(workspaceId, month);
   const totalBudgeted = rows.reduce((sum, r) => sum + r.amountCents, 0);

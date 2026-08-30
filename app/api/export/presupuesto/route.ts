@@ -53,9 +53,9 @@ export async function GET(req: NextRequest) {
     pending: Math.max(0, totalBudgeted - totalPaid) / 100,
   });
   totalRow.font = { bold: true };
-  presupuestoSheet.getColumn('budgeted').numFmt = '#,##0.00';
-  presupuestoSheet.getColumn('paid').numFmt = '#,##0.00';
-  presupuestoSheet.getColumn('pending').numFmt = '#,##0.00';
+  presupuestoSheet.getColumn('budgeted').numFmt = '#,##0';
+  presupuestoSheet.getColumn('paid').numFmt = '#,##0';
+  presupuestoSheet.getColumn('pending').numFmt = '#,##0';
 
   const pagosSheet = workbook.addWorksheet('Pagos');
   pagosSheet.columns = [
@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
       amount: payment.amount_cents / 100,
     });
   }
-  pagosSheet.getColumn('amount').numFmt = '#,##0.00';
+  pagosSheet.getColumn('amount').numFmt = '#,##0';
 
   const resumenSheet = workbook.addWorksheet('Resumen');
   resumenSheet.columns = [
@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
   resumenSheet.addRow({ concept: 'Total presupuestado', value: totalBudgeted / 100 });
   resumenSheet.addRow({ concept: 'Total pagado', value: totalPaid / 100 });
   resumenSheet.addRow({ concept: 'Total pendiente', value: Math.max(0, totalBudgeted - totalPaid) / 100 });
-  resumenSheet.getColumn('value').numFmt = '#,##0.00';
+  resumenSheet.getColumn('value').numFmt = '#,##0';
 
   const buffer = await workbook.xlsx.writeBuffer();
 
