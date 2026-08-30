@@ -1,0 +1,51 @@
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { addTransaction, deleteTransaction, updateTransaction } from '@/lib/db';
+import { resolveCategoryId, type TxType } from '@/lib/categories';
+import { toCents } from '@/lib/format';
+
+function parseForm(formData: FormData) {
+  const type = String(formData.get('type') || '') as TxType;
+  const amount = Number(formData.get('amount'));
+  const detail = String(formData.get('detail') || '').trim();
+  const categoryInput = String(formData.get('category') || '');
+  const date = String(formData.get('date') || '').slice(0, 10);
+  const category = resolveCategoryId(type, categoryInput);
+
+  return { type, amountCents: toCents(amount), detail, category, date };
+}
+
+function assertValid(data: ReturnType<typeof parseForm>) {
+  if (data.type !== 'income' && data.type !== 'expense') {
+    throw new Error('Tipo inválido');
+  }
+  if (!data.detail) {
+    throw new Error('El detalle es obligatorio');
+  }
+  if (!Number.isFinite(data.amountCents) || data.amountCents <= 0) {
+    throw new Error('El monto debe ser mayor a 0');
+  }
+  if (!data.date) {
+    throw new Error('La fecha es obligatoria');
+  }
+}
+
+export async function createTransaction(formData: FormData) {
+  const data = parseForm(formData);
+  assertValid(data);
+  addTransaction(data);
+  revalidatePath('/');
+}
+
+export async function editTransaction(id: number, formData: FormData) {
+  const data = parseForm(formData);
+  assertValid(data);
+  updateTransaction(id, data);
+  revalidatePath('/');
+}
+
+export async function removeTransaction(id: number) {
+  deleteTransaction(id);
+  revalidatePath('/');
+}
