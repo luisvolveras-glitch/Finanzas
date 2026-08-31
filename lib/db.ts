@@ -1014,21 +1014,18 @@ export function getBudgetRows(workspaceId: number, month: string): BudgetRow[] {
     })
     .filter((r): r is BudgetRow => r !== null);
 
-  const cardRows: BudgetRow[] = cards
-    .map((card): BudgetRow | null => {
-      const amountCents = getCreditCardMonthlyDue(card.id, workspaceId, month);
-      if (amountCents <= 0) return null;
-      return {
-        key: `card-${card.id}`,
-        name: card.name,
-        detail: card.last_four ? `Terminada en ${card.last_four}` : '',
-        frequency: 'Tarjeta de crédito',
-        amountCents,
-        paidCents: getCreditCardPaidTotal(card.id, workspaceId, month),
-        cardId: card.id,
-      };
-    })
-    .filter((r): r is BudgetRow => r !== null);
+  // A diferencia de las deudas, una tarjeta se muestra siempre (aunque no
+  // tenga cuotas activas este mes) para que quede visible desde que se crea
+  // y se actualice sola en cuanto se registren compras.
+  const cardRows: BudgetRow[] = cards.map((card) => ({
+    key: `card-${card.id}`,
+    name: card.name,
+    detail: card.last_four ? `Terminada en ${card.last_four}` : '',
+    frequency: 'Tarjeta de crédito',
+    amountCents: getCreditCardMonthlyDue(card.id, workspaceId, month),
+    paidCents: getCreditCardPaidTotal(card.id, workspaceId, month),
+    cardId: card.id,
+  }));
 
   return [...itemRows, ...debtRows, ...cardRows];
 }
